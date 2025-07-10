@@ -134,7 +134,7 @@ class PipelineBenchmark:
         print("\n📊 Benchmarking coordinates_extract...")
         
         try:
-            from coordinates_extract import raw_coords
+            from main_functions.coordinates_extract import raw_coords
             
             # Setup parameters
             base_dir = str(self.test_dir)
@@ -189,7 +189,7 @@ class PipelineBenchmark:
         print("\n📊 Benchmarking unwrap_coords...")
         
         try:
-            from unwrap_coords import unwrapper
+            from main_functions.unwrap_coords import unwrapper
             
             # Setup parameters
             base_dir = str(self.test_dir)
@@ -233,7 +233,7 @@ class PipelineBenchmark:
         print("\n📊 Benchmarking COM_calc...")
         
         try:
-            from COM_calc import coms
+            from main_functions.COM_calc import coms
             
             # Setup parameters
             base_dir = str(self.test_dir)
@@ -281,7 +281,7 @@ class PipelineBenchmark:
         print("\n📊 Benchmarking alpha2_MSD...")
         
         try:
-            from alpha2_MSD import a2_MSD
+            from main_functions.alpha2_MSD import a2_MSD
             
             # Setup parameters
             base_dir = str(self.test_dir)
