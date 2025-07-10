@@ -4,6 +4,7 @@ A comprehensive **molecular dynamics analysis pipeline** for generating **Mean�
 
 ## 🚀 **New in Optimized Version v2.0**
 
+- **🖥️ Windows Support**: Now available for Linux, macOS (Intel & ARM), and Windows platforms
 - **3-10x Performance Boost**: Highly optimized pipeline functions with parallel processing
 - **Scrollable GUI**: Responsive interface that works on any screen size
 - **Parallel Processing**: Multi-core support for all pipeline steps
@@ -18,14 +19,17 @@ A comprehensive **molecular dynamics analysis pipeline** for generating **Mean�
 
 | Artifact                                                | Description                                                       | Platform                           |
 | ------------------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------- |
-| `a2_MSD_pipeline.py` **(Source - Optimized)**          | **Optimized source code with 3-10x performance improvements**    | **Linux • macOS • Windows**       |
-| `a2_MSD_pipeline` (or `a2_MSD_pipeline.exe`)           | Stand‑alone executable containing the full GUI + analysis engine | Linux • macOS • Windows            |
+| `a2_MSD_pipeline.py` **(GUI + Compiled Modules)**      | **Main GUI with optimized compiled modules (.so files)**         | **Linux • macOS • Windows**       |
+| `alpha2_MSD_pip_Linux`                                  | Stand‑alone Linux executable                                     | Linux                              |
+| `alpha2_MSD_pip_mac_x86_64`                            | Stand‑alone macOS executable (Intel)                             | macOS Intel                        |
+| `alpha2_MSD_pip_mac_arm64`                             | Stand‑alone macOS executable (Apple Silicon)                     | macOS ARM                          |
+| `alpha2_MSD_pip_Windows.exe`                           | Stand‑alone Windows executable                                   | Windows                            |
 
 ---
 
 ## Quick Start
 
-### **Option 1: Optimized Source Version (Recommended)**
+### **Option 1: Source Version**
 
 ```bash
 # 1 – Clone the repository
@@ -57,6 +61,11 @@ $ ./alpha2_MSD_pip_mac_arm64
 $ xattr -dr com.apple.quarantine alpha2_MSD_pip_mac_x86_64
 $ chmod +x alpha2_MSD_pip_mac_x86_64
 $ ./alpha2_MSD_pip_mac_x86_64
+
+# Windows
+# Simply double-click alpha2_MSD_pip_Windows.exe
+# or run from command prompt:
+> alpha2_MSD_pip_Windows.exe
 ```
 
 ---
@@ -131,14 +140,16 @@ $ python3 performance_benchmark.py
 
 ## Requirements
 
-### **Source Version**
+### **GUI + Compiled Modules Version**
 - **Python 3.6+** with standard library
-- **tkinter**: GUI framework (`python3-tk` package on Linux)
+- **tkinter**: GUI framework (`python3-tk` package on Linux, included with Python on Windows/macOS)
 - **NumPy**: For optimized calculations (auto-installed with most Python distributions)
 - **VMD**: Required for coordinate extraction (Step 1)
+- **Compiled modules**: Pre-compiled .so files included for optimal performance
 
 ### **Executable Version**
 - No additional requirements—everything is bundled
+- Available for **Linux**, **macOS (Intel & ARM)**, and **Windows**
 
 ---
 
@@ -232,6 +243,20 @@ The optimized GUI generates production-ready scripts with:
 | **COM_calc** | Loop-based calculations | Vectorized NumPy operations | **~10x faster** |
 | **alpha2_MSD** | Unstable numerics | Enhanced stability | **Reliable + Faster** |
 | **Overall Pipeline** | Sequential processing | Parallel + optimized | **3-10x end-to-end** |
+
+---
+
+## 🔗 **Access to Source Code**
+
+This repository contains compiled modules (.so files) for optimal performance. If you require access to the complete source code for research, development, or educational purposes, please contact the author directly:
+
+**📧 Contact:** Please email the repository owner to request access to the private source repository. Include a brief description of your intended use case and institutional affiliation (if applicable).
+
+Access to the source code may be granted for:
+- Academic research and publications
+- Educational use in courses and workshops  
+- Collaborative development projects
+- Custom modifications and extensions
 
 ---
 
