@@ -29,6 +29,7 @@ from tkinter import filedialog, messagebox, ttk
 import os
 import json
 import multiprocessing as mp
+import shutil
 
 # Configure ttk style for better appearance
 def configure_ttk_style():
@@ -474,22 +475,31 @@ class PipelineGUI(tk.Tk):
                              relief='groove', borderwidth=1)
         files.grid(row=4, column=0, padx=15, pady=10, sticky="ew")
         
-        tk.Label(files, text="Main script file:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=0, sticky="e", padx=5, pady=5)
-        self.mainfile_var = tk.StringVar()
-        main_entry = tk.Entry(files, textvariable=self.mainfile_var, width=60, font=("Arial", 13))
-        main_entry.grid(row=0, column=1, padx=5, pady=5)
-        create_tooltip(main_entry, "Python script filename that will contain the generated pipeline code")
-        tk.Button(files, text="Save As...", command=self.save_mainfile, font=("Arial", 13)).grid(
+        tk.Label(files, text="Output folder name:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=0, sticky="e", padx=5, pady=5)
+        self.output_folder_var = tk.StringVar(value="pipeline_run")
+        folder_entry = tk.Entry(files, textvariable=self.output_folder_var, width=60, font=("Arial", 13))
+        folder_entry.grid(row=0, column=1, padx=5, pady=5)
+        create_tooltip(folder_entry, "Name of the folder to contain all generated files and main_functions. This self-contained folder can be uploaded directly to your target computer without additional setup.")
+        tk.Button(files, text="Browse...", command=self.browse_output_folder, font=("Arial", 13)).grid(
             row=0, column=2, padx=5, pady=5
         )
         
-        tk.Label(files, text="Submit script file:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(files, text="Main script file:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=0, sticky="e", padx=5, pady=5)
+        self.mainfile_var = tk.StringVar()
+        main_entry = tk.Entry(files, textvariable=self.mainfile_var, width=60, font=("Arial", 13))
+        main_entry.grid(row=1, column=1, padx=5, pady=5)
+        create_tooltip(main_entry, "Python script filename (will be created in output folder)")
+        tk.Button(files, text="Save As...", command=self.save_mainfile, font=("Arial", 13)).grid(
+            row=1, column=2, padx=5, pady=5
+        )
+        
+        tk.Label(files, text="Submit script file:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=2, column=0, sticky="e", padx=5, pady=5)
         self.submitfile_var = tk.StringVar()
         submit_entry = tk.Entry(files, textvariable=self.submitfile_var, width=60, font=("Arial", 13))
-        submit_entry.grid(row=1, column=1, padx=5, pady=5)
-        create_tooltip(submit_entry, "SLURM batch script filename for submitting the job to the cluster")
+        submit_entry.grid(row=2, column=1, padx=5, pady=5)
+        create_tooltip(submit_entry, "SLURM batch script filename (will be created in output folder)")
         tk.Button(files, text="Save As...", command=self.save_submitfile, font=("Arial", 13)).grid(
-            row=1, column=2, padx=5, pady=5
+            row=2, column=2, padx=5, pady=5
         )
 
         # Generate button with enhanced styling
@@ -554,19 +564,25 @@ class PipelineGUI(tk.Tk):
         if f:
             self.unwrap_vars[2].set(f)
 
+    def browse_output_folder(self):
+        d = filedialog.askdirectory()
+        if d:
+            folder_name = os.path.basename(d)
+            self.output_folder_var.set(folder_name)
+
     def save_mainfile(self):
         path = filedialog.asksaveasfilename(
             defaultextension=".py", filetypes=[("Python","*.py"),("All","*")]
         )
         if path:
-            self.mainfile_var.set(path)
+            self.mainfile_var.set(os.path.basename(path))
 
     def save_submitfile(self):
         path = filedialog.asksaveasfilename(
             defaultextension=".sh", filetypes=[("Shell Script","*.sh"),("All","*")]
         )
         if path:
-            self.submitfile_var.set(path)
+            self.submitfile_var.set(os.path.basename(path))
 
 
     # —— Persistence ——
@@ -592,6 +608,7 @@ class PipelineGUI(tk.Tk):
             "a2_chunk_processing": self.a2_chunk_processing.get(),
             "a2_validate": self.a2_validate.get(),
             "sbatch": [v.get() for v in self.sbatch_vars],
+            "output_folder": self.output_folder_var.get(),
             "mainfile": self.mainfile_var.get(),
             "submitfile": self.submitfile_var.get()
         }
@@ -642,6 +659,7 @@ class PipelineGUI(tk.Tk):
         for v,val in zip(self.sbatch_vars, data.get("sbatch",[])):
             v.set(val)
 
+        self.output_folder_var.set(data.get("output_folder", "pipeline_run"))
         self.mainfile_var.set(data.get("mainfile",""))
         self.submitfile_var.set(data.get("submitfile",""))
 
@@ -660,7 +678,28 @@ class PipelineGUI(tk.Tk):
             if not bd:
                 raise ValueError("Base Directory is required for benchmarking")
             
-            benchmark_file = os.path.join(bd, "run_benchmark.py")
+            # Create output folder
+            output_folder = self.output_folder_var.get().strip()
+            if not output_folder:
+                raise ValueError("Output folder name is required")
+            
+            output_path = os.path.join(bd, output_folder)
+            os.makedirs(output_path, exist_ok=True)
+            
+            # Copy main_functions folder to output directory if it doesn't exist
+            main_functions_dest = os.path.join(output_path, "main_functions")
+            if not os.path.exists(main_functions_dest):
+                # Look for main_functions folder
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                main_functions_src = os.path.join(current_dir, "main_functions")
+                
+                if os.path.exists(main_functions_src):
+                    shutil.copytree(main_functions_src, main_functions_dest)
+                    print(f"Copied main_functions to {main_functions_dest}")
+                else:
+                    raise ValueError("main_functions folder not found. Please ensure it exists in the current directory.")
+            
+            benchmark_file = os.path.join(output_path, "run_benchmark.py")
             
             benchmark_code = f'''#!/usr/bin/env python3
 """
@@ -702,7 +741,7 @@ def main():
     print()
     
     # Run benchmark
-    with PipelineBenchmark(test_dir="{bd}/benchmark_test", cleanup=True) as benchmark:
+    with PipelineBenchmark(test_dir="{output_path}/benchmark_test", cleanup=True) as benchmark:
         results = benchmark.run_full_benchmark(
             use_parallel=True,
             max_workers=test_params['max_workers']
@@ -719,8 +758,11 @@ if __name__ == "__main__":
                 f.write(benchmark_code)
             
             messagebox.showinfo("Benchmark Generated", 
-                              f"Benchmark script created: {benchmark_file}\n\n"
-                              f"Run with: python {benchmark_file}")
+                              f"Benchmark script created in folder: {output_folder}\n\n"
+                              f"File: {benchmark_file}\n\n"
+                              f"Run with: python {os.path.basename(benchmark_file)}\n\n"
+                              f"Note: The benchmark script and main_functions folder "
+                              f"are now organized in the output folder, ready for upload.")
                               
         except Exception as e:
             messagebox.showerror("Error", f"Failed to generate benchmark script:\n{e}")
@@ -734,6 +776,27 @@ if __name__ == "__main__":
                 raise ValueError("Base Directory is required")
             nd = int(self.num_dcd_var.get())
             max_workers = int(self.max_workers_var.get())
+            
+            # Create output folder
+            output_folder = self.output_folder_var.get().strip()
+            if not output_folder:
+                raise ValueError("Output folder name is required")
+            
+            output_path = os.path.join(bd, output_folder)
+            os.makedirs(output_path, exist_ok=True)
+            
+            # Copy main_functions folder to output directory if it doesn't exist
+            main_functions_dest = os.path.join(output_path, "main_functions")
+            if not os.path.exists(main_functions_dest):
+                # Look for main_functions folder
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                main_functions_src = os.path.join(current_dir, "main_functions")
+                
+                if os.path.exists(main_functions_src):
+                    shutil.copytree(main_functions_src, main_functions_dest)
+                    print(f"Copied main_functions to {main_functions_dest}")
+                else:
+                    raise ValueError("main_functions folder not found. Please ensure it exists in the current directory.")
 
             # --- Build the lines of the Python driver ---
             lines = [
@@ -945,8 +1008,9 @@ if __name__ == "__main__":
             if not main_base:
                 raise ValueError("Main script file name is required")
             main_fn = main_base if main_base.endswith(".py") else main_base + ".py"
+            main_full_path = os.path.join(output_path, main_fn)
 
-            with open(main_fn, "w") as f:
+            with open(main_full_path, "w") as f:
                 f.write("\n".join(lines))
 
             # --- Write the submission .sh file ---
@@ -954,11 +1018,12 @@ if __name__ == "__main__":
             if not sub_base:
                 raise ValueError("Submit script file name is required")
             sub_fn = sub_base if sub_base.endswith(".sh") else sub_base + ".sh"
+            sub_full_path = os.path.join(output_path, sub_fn)
 
             sb = [v.get().strip() for v in self.sbatch_vars]
             # sb order: Nodes, Partition, QOS, CPUs, Tasks, Walltime, Output prefix, Email
 
-            with open(sub_fn, "w") as f:
+            with open(sub_full_path, "w") as f:
                 f.write("#!/bin/bash\n")
                 f.write("# Generated by Optimized MD Analysis Pipeline GUI v2.0\n")
                 f.write("# This script uses the optimized pipeline with parallel processing\n\n")
@@ -989,12 +1054,16 @@ if __name__ == "__main__":
             # --- Save & notify ---
             self.save_config()
             
-            message = f"""Successfully generated optimized pipeline files:
+            message = f"""Successfully generated optimized pipeline files in folder:
 
+Output Folder: {output_path}
 Main Script: {main_fn}
 SLURM Script: {sub_fn}
 
-Key Optimizations Included:
+Key Features:
+• All files organized in a single folder: {output_folder}
+• main_functions folder included for portability
+• Ready to upload to target computer
 • Parallel processing with {max_workers} workers
 • Enhanced error handling and progress reporting
 • Memory-efficient processing for large datasets
