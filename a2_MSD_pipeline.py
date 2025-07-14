@@ -1,27 +1,106 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 import os
 import json
 import multiprocessing as mp
 
+# Configure ttk style for better appearance
+def configure_ttk_style():
+    """Configure ttk widgets for better visual appearance"""
+    style = ttk.Style()
+    
+    # Configure Entry style
+    style.configure('Smooth.TEntry',
+                   fieldbackground='white',
+                   borderwidth=1,
+                   relief='solid',
+                   focuscolor='#3498db')
+    
+    # Configure Checkbutton style  
+    style.configure('Smooth.TCheckbutton',
+                   background='#f0f0f0',
+                   focuscolor='none')
+    
+    return style
+
 # Path to save & load last inputs
 CONFIG_PATH = os.path.expanduser("~/.pipeline_gui_config.json")
+
+class ToolTip:
+    """
+    Create a tooltip for a given widget
+    """
+    def __init__(self, widget, text='widget info'):
+        self.widget = widget
+        self.text = text
+        self.widget.bind("<Enter>", self.enter)
+        self.widget.bind("<Leave>", self.leave)
+        self.tipwindow = None
+        self.id = None
+        self.x = self.y = 0
+
+    def enter(self, event=None):
+        self.schedule()
+
+    def leave(self, event=None):
+        self.unschedule()
+        self.hidetip()
+
+    def schedule(self):
+        self.unschedule()
+        self.id = self.widget.after(500, self.showtip)  # 500ms delay
+
+    def unschedule(self):
+        id = self.id
+        self.id = None
+        if id:
+            self.widget.after_cancel(id)
+
+    def showtip(self, event=None):
+        x, y, cx, cy = self.widget.bbox("insert") if hasattr(self.widget, 'bbox') else (0, 0, 0, 0)
+        x += self.widget.winfo_rootx() + 25
+        y += self.widget.winfo_rooty() + 20
+        
+        # Creates a toplevel window
+        self.tipwindow = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry("+%d+%d" % (x, y))
+        
+        label = tk.Label(tw, text=self.text, justify=tk.LEFT,
+                      background="#f8f8f8", relief=tk.SOLID, borderwidth=1,
+                      font=("Arial", 12, "normal"), wraplength=350, fg='#2c3e50')
+        label.pack(ipadx=1)
+
+    def hidetip(self):
+        tw = self.tipwindow
+        self.tipwindow = None
+        if tw:
+            tw.destroy()
+
+def create_tooltip(widget, text):
+    """Helper function to create tooltips easily"""
+    return ToolTip(widget, text)
 
 class PipelineGUI(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("MD Analysis Pipeline GUI - Optimized Version")
-        self.geometry("920x800")
+        self.geometry("1100x1400")  # Significantly increased resolution
+        self.configure(bg='#f0f0f0')  # Light gray background for modern look
+        
+        # Configure ttk styling for better appearance
+        self.style = configure_ttk_style()
 
         # Create main frame and scrollbar
-        self.main_frame = tk.Frame(self)
+        self.main_frame = tk.Frame(self, bg='#f0f0f0')
         self.main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Create canvas and scrollbar
-        self.canvas = tk.Canvas(self.main_frame)
+        self.canvas = tk.Canvas(self.main_frame, bg='#f0f0f0', highlightthickness=0)
         self.scrollbar = ttk.Scrollbar(self.main_frame, orient="vertical", command=self.canvas.yview)
-        self.scrollable_frame = tk.Frame(self.canvas)
+        self.scrollable_frame = tk.Frame(self.canvas, bg='#f0f0f0')
 
         # Configure scrollable frame
         self.scrollable_frame.bind(
@@ -51,217 +130,361 @@ class PipelineGUI(tk.Tk):
         self.canvas.bind("<Button-1>", lambda e: self.canvas.focus_set())
 
         # * fields are required
-        tk.Label(self.scrollable_frame, text="* fields are required | Optimized Pipeline v2.0", 
-                font=("Arial", 10, "bold")).grid(
-            row=0, column=0, sticky="w", padx=10, pady=(10,0)
-        )
+        header_frame = tk.Frame(self.scrollable_frame, bg='#f0f0f0')
+        header_frame.grid(row=0, column=0, sticky="ew", padx=15, pady=(15,0))
+        
+        tk.Label(header_frame, text="MD Analysis Pipeline GUI", 
+                font=("Arial", 18, "bold"), fg='#2c3e50', bg='#f0f0f0').pack(anchor='w')
+        tk.Label(header_frame, text="* Required fields | Optimized Pipeline v2.0", 
+                font=("Arial", 12), fg='#7f8c8d', bg='#f0f0f0').pack(anchor='w')
 
         # --- Common Parameters ---
-        common = tk.LabelFrame(self.scrollable_frame, text="Common Parameters")
-        common.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
+        common = tk.LabelFrame(self.scrollable_frame, text="Common Parameters", 
+                              font=("Arial", 14, "bold"), fg='#2c3e50', bg='#f0f0f0',
+                              relief='groove', borderwidth=1)
+        common.grid(row=1, column=0, padx=15, pady=10, sticky="ew")
 
-        tk.Label(common, text="Base Directory:*").grid(row=0, column=0, sticky="e")
+        tk.Label(common, text="Base Directory:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=0, sticky="e", padx=5, pady=5)
         self.baseDir_var = tk.StringVar()
-        tk.Entry(common, textvariable=self.baseDir_var, width=50).grid(row=0, column=1)
-        tk.Button(common, text="Browse...", command=self.browse_baseDir).grid(
-            row=0, column=2
+        base_entry = tk.Entry(common, textvariable=self.baseDir_var, width=70, font=("Arial", 13), 
+                             relief='solid', borderwidth=1)
+        base_entry.grid(row=0, column=1, padx=5, pady=5)
+        create_tooltip(base_entry, "Root directory containing all simulation data and analysis folders")
+        tk.Button(common, text="Browse...", command=self.browse_baseDir, font=("Arial", 13),
+                 bg='#ecf0f1', fg='#2c3e50', relief='raised', borderwidth=1, cursor='hand2').grid(
+            row=0, column=2, padx=5, pady=5
         )
 
-        tk.Label(common, text="Number of DCDs:*").grid(row=1, column=0, sticky="e")
+        tk.Label(common, text="Number of DCDs:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=0, sticky="e", padx=5, pady=5)
         self.num_dcd_var = tk.IntVar(value=1)
-        tk.Entry(common, textvariable=self.num_dcd_var, width=10).grid(
-            row=1, column=1, sticky="w"
-        )
+        dcd_entry = tk.Entry(common, textvariable=self.num_dcd_var, width=15, font=("Arial", 13),
+                            relief='solid', borderwidth=1)
+        dcd_entry.grid(row=1, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(dcd_entry, "Total number of trajectory DCD files to process (e.g., 100 for com_0.dat through com_99.dat)")
 
         # Global parallel processing settings
-        tk.Label(common, text="Max Workers:").grid(row=2, column=0, sticky="e")
+        tk.Label(common, text="Max Workers:", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=2, column=0, sticky="e", padx=5, pady=5)
         self.max_workers_var = tk.IntVar(value=min(4, mp.cpu_count()))
-        tk.Entry(common, textvariable=self.max_workers_var, width=10).grid(
-            row=2, column=1, sticky="w"
-        )
+        workers_entry = tk.Entry(common, textvariable=self.max_workers_var, width=15, font=("Arial", 13),
+                                relief='solid', borderwidth=1)
+        workers_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(workers_entry, "Number of CPU cores to use for parallel processing. Higher values = faster computation but more memory usage")
         tk.Label(common, text=f"(auto-detected: {mp.cpu_count()} cores)", 
-                font=("Arial", 8)).grid(row=2, column=2, sticky="w")
+                font=("Arial", 12), bg='#f0f0f0', fg='#7f8c8d').grid(row=2, column=2, sticky="w", padx=5)
 
         # --- Steps container ---
-        steps = tk.Frame(self.scrollable_frame)
+        steps = tk.Frame(self.scrollable_frame, bg='#f0f0f0')
         steps.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
 
         # ----- STEP 1: Coordinate Extraction -----
         self.skip1 = tk.BooleanVar(value=False)
-        coords = tk.LabelFrame(steps, text="Step 1: coordinates_extract (Optimized)")
+        coords = tk.LabelFrame(steps, text="Step 1: coordinates_extract (Optimized)",
+                              font=("Arial", 14, "bold"), fg='#2c3e50', bg='#f0f0f0',
+                              relief='groove', borderwidth=1)
         coords.grid(row=0, column=0, padx=5, pady=5, sticky="nw")
-        tk.Checkbutton(
+        skip1_check = tk.Checkbutton(
             coords, text="Skip Step 1", variable=self.skip1,
-            command=lambda: self.toggle_frame(coords, self.skip1.get())
-        ).grid(row=0, column=2)
+            command=lambda: self.toggle_frame(coords, self.skip1.get()),
+            font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0'
+        )
+        skip1_check.grid(row=0, column=2, padx=5, pady=5)
+        create_tooltip(skip1_check, "Skip coordinate extraction step if already completed")
 
         labels1 = ["INdir","OUTdir","PSF base","DCD base","Particles","Resname","VMD path"]
         self.coords_vars = []
         for i, lbl in enumerate(labels1, start=1):
-            tk.Label(coords, text=f"{lbl}:*").grid(row=i, column=0, sticky="e")
+            tk.Label(coords, text=f"{lbl}:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=i, column=0, sticky="e", padx=5, pady=5)
             v = tk.StringVar()
-            ent = tk.Entry(coords, textvariable=v, width=30)
-            ent.grid(row=i, column=1)
+            ent = tk.Entry(coords, textvariable=v, width=30, font=("Arial", 13), relief='solid', borderwidth=1)
+            ent.grid(row=i, column=1, padx=5, pady=5)
             if lbl=="VMD path":
-                tk.Button(coords, text="Browse...", command=self.browse_vmd).grid(
-                    row=i, column=2
+                tk.Button(coords, text="Browse...", command=self.browse_vmd, font=("Arial", 13),
+                         bg='#ecf0f1', fg='#2c3e50', relief='raised', borderwidth=1, cursor='hand2').grid(
+                    row=i, column=2, padx=5, pady=5
                 )
             elif lbl=="Particles":
-                tk.Label(coords, text='e.g., "0 to 999"', font=("Arial", 8)).grid(
-                    row=i, column=2, sticky="w"
+                tk.Label(coords, text='e.g., "0 to 999"', font=("Arial", 10), bg='#f0f0f0', fg='#7f8c8d').grid(
+                    row=i, column=2, sticky="w", padx=5
                 )
             self.coords_vars.append(v)
         
         # Advanced options for coordinates_extract
-        tk.Label(coords, text="Use Parallel VMD:").grid(row=len(labels1)+1, column=0, sticky="e")
+        tk.Label(coords, text="Use Parallel VMD:", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=len(labels1)+1, column=0, sticky="e", padx=5, pady=5)
         self.coords_parallel = tk.BooleanVar(value=True)
-        tk.Checkbutton(coords, variable=self.coords_parallel).grid(row=len(labels1)+1, column=1, sticky="w")
+        coords_parallel_check = tk.Checkbutton(coords, variable=self.coords_parallel, font=("Arial", 13), 
+                                              bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        coords_parallel_check.grid(row=len(labels1)+1, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(coords_parallel_check, "Enable parallel VMD processing for faster coordinate extraction")
         
         self.toggle_frame(coords, self.skip1.get())
 
         # ----- STEP 2: Unwrap Coordinates -----
         self.skip2 = tk.BooleanVar(value=False)
-        unwrap = tk.LabelFrame(steps, text="Step 2: unwrap_coords (Optimized)")
+        unwrap = tk.LabelFrame(steps, text="Step 2: unwrap_coords (Optimized)",
+                              font=("Arial", 14, "bold"), fg='#2c3e50', bg='#f0f0f0',
+                              relief='groove', borderwidth=1)
         unwrap.grid(row=0, column=1, padx=5, pady=5, sticky="nw")
-        tk.Checkbutton(
+        skip2_check = tk.Checkbutton(
             unwrap, text="Skip Step 2", variable=self.skip2,
-            command=lambda: self.toggle_frame(unwrap, self.skip2.get())
-        ).grid(row=0, column=2)
+            command=lambda: self.toggle_frame(unwrap, self.skip2.get()),
+            font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0'
+        )
+        skip2_check.grid(row=0, column=2, padx=5, pady=5)
+        create_tooltip(skip2_check, "Skip coordinate unwrapping step if already completed")
 
         labels2 = ["INdir","OUTdir","XSC file","Num atoms"]
         self.unwrap_vars = []
         for i, lbl in enumerate(labels2, start=1):
-            tk.Label(unwrap, text=f"{lbl}:*").grid(row=i, column=0, sticky="e")
+            tk.Label(unwrap, text=f"{lbl}:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=i, column=0, sticky="e", padx=5, pady=5)
             v = tk.StringVar()
-            ent = tk.Entry(unwrap, textvariable=v, width=30)
-            ent.grid(row=i, column=1)
+            ent = tk.Entry(unwrap, textvariable=v, width=30, font=("Arial", 13), relief='solid', borderwidth=1)
+            ent.grid(row=i, column=1, padx=5, pady=5)
             if lbl=="XSC file":
-                tk.Button(unwrap, text="Browse...", command=self.browse_xsc).grid(
-                    row=i, column=2
+                tk.Button(unwrap, text="Browse...", command=self.browse_xsc, font=("Arial", 13),
+                         bg='#ecf0f1', fg='#2c3e50', relief='raised', borderwidth=1, cursor='hand2').grid(
+                    row=i, column=2, padx=5, pady=5
                 )
             self.unwrap_vars.append(v)
         
         # Optional interval & stride
         self.unwrap_opt = []
         for j,lbl in enumerate(["Interval (optional)","Stride (optional)"], start=len(labels2)+1):
-            tk.Label(unwrap, text=f"{lbl}:").grid(row=j, column=0, sticky="e")
+            tk.Label(unwrap, text=f"{lbl}:", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=j, column=0, sticky="e", padx=5, pady=5)
             v = tk.StringVar()
-            ent = tk.Entry(unwrap, textvariable=v, width=30)
-            ent.grid(row=j, column=1)
+            ent = tk.Entry(unwrap, textvariable=v, width=30, font=("Arial", 13), relief='solid', borderwidth=1)
+            ent.grid(row=j, column=1, padx=5, pady=5)
             self.unwrap_opt.append(v)
         
         # Advanced options for unwrap_coords
         row_offset = len(labels2) + len(self.unwrap_opt) + 1
-        tk.Label(unwrap, text="Chunk Size:").grid(row=row_offset, column=0, sticky="e")
+        tk.Label(unwrap, text="Chunk Size:", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset, column=0, sticky="e", padx=5, pady=5)
         self.unwrap_chunk_var = tk.StringVar(value="auto")
-        tk.Entry(unwrap, textvariable=self.unwrap_chunk_var, width=10).grid(row=row_offset, column=1, sticky="w")
+        chunk_entry = tk.Entry(unwrap, textvariable=self.unwrap_chunk_var, width=15, font=("Arial", 13), relief='solid', borderwidth=1)
+        chunk_entry.grid(row=row_offset, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(chunk_entry, "Memory chunk size for processing large files. Use 'auto' for automatic sizing, or specify number of frames (e.g., 10000)")
         
-        tk.Label(unwrap, text="Use Parallel:").grid(row=row_offset+1, column=0, sticky="e")
+        tk.Label(unwrap, text="Use Parallel:", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset+1, column=0, sticky="e", padx=5, pady=5)
         self.unwrap_parallel = tk.BooleanVar(value=True)
-        tk.Checkbutton(unwrap, variable=self.unwrap_parallel).grid(row=row_offset+1, column=1, sticky="w")
+        parallel_check = tk.Checkbutton(unwrap, variable=self.unwrap_parallel, font=("Arial", 13),
+                                       bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        parallel_check.grid(row=row_offset+1, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(parallel_check, "Enable parallel processing for faster unwrapping of coordinates")
         
         self.toggle_frame(unwrap, self.skip2.get())
 
         # ----- STEP 3: COM Calculation -----
         self.skip3 = tk.BooleanVar(value=False)
-        com = tk.LabelFrame(steps, text="Step 3: COM_calc (Optimized)")
+        com = tk.LabelFrame(steps, text="Step 3: COM_calc (Optimized)",
+                           font=("Arial", 14, "bold"), fg='#2c3e50', bg='#f0f0f0',
+                           relief='groove', borderwidth=1)
         com.grid(row=1, column=0, padx=5, pady=5, sticky="nw")
-        tk.Checkbutton(
+        skip3_check = tk.Checkbutton(
             com, text="Skip Step 3", variable=self.skip3,
-            command=lambda: self.toggle_frame(com, self.skip3.get())
-        ).grid(row=0, column=2)
+            command=lambda: self.toggle_frame(com, self.skip3.get()),
+            font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0'
+        )
+        skip3_check.grid(row=0, column=2, padx=5, pady=5)
+        create_tooltip(skip3_check, "Skip COM calculation step if already completed")
 
         labels3 = ["INdir","OUTdir","Num particles","Atoms per particle","Mass list"]
         self.com_vars = []
         for i, lbl in enumerate(labels3, start=1):
-            tk.Label(com, text=f"{lbl}:*").grid(row=i, column=0, sticky="e")
+            tk.Label(com, text=f"{lbl}:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=i, column=0, sticky="e", padx=5, pady=5)
             v = tk.StringVar()
-            ent = tk.Entry(com, textvariable=v, width=30)
-            ent.grid(row=i, column=1)
+            ent = tk.Entry(com, textvariable=v, width=30, font=("Arial", 13), relief='solid', borderwidth=1)
+            ent.grid(row=i, column=1, padx=5, pady=5)
             if lbl=="Mass list":
-                tk.Label(com, text='e.g., "16.0,1.008,1.008"', font=("Arial", 8)).grid(
-                    row=i, column=2, sticky="w"
+                tk.Label(com, text='e.g., "16.0,1.008,1.008"', font=("Arial", 10), bg='#f0f0f0', fg='#7f8c8d').grid(
+                    row=i, column=2, sticky="w", padx=5
                 )
             self.com_vars.append(v)
         
         # Advanced options for COM_calc
         row_offset = len(labels3) + 1
-        tk.Label(com, text="Use Parallel:").grid(row=row_offset, column=0, sticky="e")
+        tk.Label(com, text="Use Parallel:", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset, column=0, sticky="e", padx=5, pady=5)
         self.com_parallel = tk.BooleanVar(value=True)
-        tk.Checkbutton(com, variable=self.com_parallel).grid(row=row_offset, column=1, sticky="w")
+        com_parallel_check = tk.Checkbutton(com, variable=self.com_parallel, font=("Arial", 13),
+                                           bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        com_parallel_check.grid(row=row_offset, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(com_parallel_check, "Enable parallel processing for faster COM calculations")
         
-        tk.Label(com, text="Use Memory Map:").grid(row=row_offset+1, column=0, sticky="e")
+        tk.Label(com, text="Use Memory Map:", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset+1, column=0, sticky="e", padx=5, pady=5)
         self.com_memmap = tk.BooleanVar(value=False)
-        tk.Checkbutton(com, variable=self.com_memmap).grid(row=row_offset+1, column=1, sticky="w")
-        tk.Label(com, text="(for very large files)", font=("Arial", 8)).grid(row=row_offset+1, column=2, sticky="w")
+        com_memmap_check = tk.Checkbutton(com, variable=self.com_memmap, font=("Arial", 13),
+                                         bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        com_memmap_check.grid(row=row_offset+1, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(com_memmap_check, "Use memory mapping for very large files to reduce memory usage")
+        tk.Label(com, text="(for very large files)", font=("Arial", 10), bg='#f0f0f0', fg='#7f8c8d').grid(row=row_offset+1, column=2, sticky="w", padx=5)
         
         self.toggle_frame(com, self.skip3.get())
 
         # ----- STEP 4: Alpha2 MSD -----
-        a2 = tk.LabelFrame(steps, text="Step 4: alpha2_MSD (Optimized - always runs)")
-        a2.grid(row=1, column=1, padx=5, pady=5, sticky="nw")
+        a2 = tk.LabelFrame(steps, text="Step 4: Non-Gaussian Parameter Calculation (Optimized - always runs)",
+                          font=("Arial", 14, "bold"), fg='#2c3e50', bg='#f0f0f0',
+                          relief='groove', borderwidth=1)
+        a2.grid(row=1, column=1, padx=10, pady=10, sticky="nw")
+        
+        # Calculation type selection
+        tk.Label(a2, text="Calculation Type:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=0, sticky="e", padx=5, pady=5)
+        self.calc_type_var = tk.StringVar(value="alpha2_msd")
+        calc_frame = tk.Frame(a2, bg='#f0f0f0')
+        calc_frame.grid(row=0, column=1, sticky="w", padx=5, pady=5)
+        
+        # Create font that supports Unicode characters with multiple fallbacks
+        unicode_fonts = [
+            ("Segoe UI", 13),           # Windows
+            ("Arial Unicode MS", 13),   # macOS
+            ("DejaVu Sans", 13),        # Linux
+            ("Liberation Sans", 13),    # Linux
+            ("Arial", 13),              # Fallback
+            ("TkDefaultFont", 13)       # System default
+        ]
+        
+        unicode_font = None
+        for font in unicode_fonts:
+            try:
+                # Test if font can display Greek characters
+                test_widget = tk.Label(calc_frame, text="α", font=font)
+                unicode_font = font
+                test_widget.destroy()
+                break
+            except:
+                continue
+        
+        if unicode_font is None:
+            unicode_font = ("TkDefaultFont", 13)
+        
+        # Try Unicode first, fall back to ASCII if needed
+        try:
+            alpha2_text = "α₂(t) and MSD"
+            alpha_xz_text = "α_xz(t)"
+        except:
+            alpha2_text = "alpha2(t) and MSD"
+            alpha_xz_text = "alpha_xz(t)"
+        
+        alpha2_radio = tk.Radiobutton(calc_frame, text=alpha2_text, variable=self.calc_type_var, 
+                      value="alpha2_msd", font=unicode_font, bg='#f0f0f0', fg='#2c3e50',
+                      selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        alpha2_radio.pack(side=tk.LEFT, padx=5)
+        create_tooltip(alpha2_radio, "Calculate standard non-Gaussian parameter alpha2(t) = 3<Dr^4>/(5<Dr^2>^2) - 1 and mean square displacement")
+        
+        alpha_xz_radio = tk.Radiobutton(calc_frame, text=alpha_xz_text, variable=self.calc_type_var, 
+                      value="alpha_xz", font=unicode_font, bg='#f0f0f0', fg='#2c3e50',
+                      selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        alpha_xz_radio.pack(side=tk.LEFT, padx=5)
+        create_tooltip(alpha_xz_radio, "Calculate directional correlation parameter alpha_xz(t) = <Dx^2*Dz^2>/(<Dx^2>*<Dz^2>) - 1")
+        
         labels4 = ["INdir","OUTdir","Num particles","Min frames"]
+        tooltips4 = [
+            "Input directory containing com_data folder with trajectory files",
+            "Output directory where results will be saved (MSDs and alpha2s folders)",
+            "Number of particles/molecules in each trajectory file",
+            "Minimum number of time frames required per trajectory file"
+        ]
+        
         self.a2_vars = []
-        for i,lbl in enumerate(labels4):
-            tk.Label(a2, text=f"{lbl}:*").grid(row=i, column=0, sticky="e")
+        for i, (lbl, tooltip) in enumerate(zip(labels4, tooltips4)):
+            tk.Label(a2, text=f"{lbl}:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=i+1, column=0, sticky="e", padx=5, pady=5)
             v = tk.StringVar()
-            tk.Entry(a2, textvariable=v, width=30).grid(row=i, column=1)
+            entry = tk.Entry(a2, textvariable=v, width=40, font=("Arial", 13))
+            entry.grid(row=i+1, column=1, padx=5, pady=5)
+            create_tooltip(entry, tooltip)
             self.a2_vars.append(v)
         
-        # Advanced options for alpha2_MSD
-        row_offset = len(labels4)
-        tk.Label(a2, text="Chunk Processing:").grid(row=row_offset, column=0, sticky="e")
+        # Advanced options
+        row_offset = len(labels4) + 1
+        tk.Label(a2, text="Chunk Processing:", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset, column=0, sticky="e", padx=5, pady=5)
         self.a2_chunk_processing = tk.BooleanVar(value=True)
-        tk.Checkbutton(a2, variable=self.a2_chunk_processing).grid(row=row_offset, column=1, sticky="w")
+        chunk_check = tk.Checkbutton(a2, variable=self.a2_chunk_processing, font=("Arial", 13),
+                                    bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        chunk_check.grid(row=row_offset, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(chunk_check, "Process data in chunks for better memory efficiency with large datasets. Recommended for systems with >1000 particles.")
         
-        tk.Label(a2, text="Validate Data:").grid(row=row_offset+1, column=0, sticky="e")
+        tk.Label(a2, text="Validate Data:", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset+1, column=0, sticky="e", padx=5, pady=5)
         self.a2_validate = tk.BooleanVar(value=True)
-        tk.Checkbutton(a2, variable=self.a2_validate).grid(row=row_offset+1, column=1, sticky="w")
+        validate_check = tk.Checkbutton(a2, variable=self.a2_validate, font=("Arial", 13),
+                                       bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        validate_check.grid(row=row_offset+1, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(validate_check, "Perform data validation checks during processing. Helps catch errors but adds slight overhead.")
 
         # --- SLURM parameters ---
-        sb = tk.LabelFrame(self.scrollable_frame, text="SLURM Submission Parameters")
-        sb.grid(row=3, column=0, padx=10, pady=5, sticky="ew")
+        # Center the SLURM section horizontally
+        slurm_container = tk.Frame(self.scrollable_frame, bg='#f0f0f0')
+        slurm_container.grid(row=3, column=0, padx=15, pady=10, sticky="ew")
+        slurm_container.grid_columnconfigure(0, weight=1)
+        slurm_container.grid_columnconfigure(2, weight=1)
+        
+        sb = tk.LabelFrame(slurm_container, text="SLURM Submission Parameters",
+                          font=("Arial", 14, "bold"), fg='#2c3e50', bg='#f0f0f0',
+                          relief='groove', borderwidth=1)
+        sb.grid(row=0, column=1)
+        
         sb_labels = ["Nodes","Partition","QOS","CPUs","Tasks","Walltime","Output prefix","Email"]
+        sb_tooltips = [
+            "Number of compute nodes to request (usually 1 for single-node jobs)",
+            "SLURM partition/queue name (e.g., 'standard', 'gpu', 'high-mem')", 
+            "Quality of Service level for job priority",
+            "Number of CPU cores per node to request",
+            "Number of tasks/processes (usually 1 for serial jobs)",
+            "Maximum runtime (format: HH:MM:SS or DD-HH:MM:SS)",
+            "Prefix for output log files",
+            "Email address for job notifications"
+        ]
+        
         self.sbatch_vars = []
-        for i,lbl in enumerate(sb_labels):
-            tk.Label(sb, text=f"{lbl}:*").grid(row=i, column=0, sticky="e")
+        for i, (lbl, tooltip) in enumerate(zip(sb_labels, sb_tooltips)):
+            tk.Label(sb, text=f"{lbl}:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=i, column=0, sticky="e", padx=5, pady=5)
             v = tk.StringVar()
             if lbl == "CPUs":
                 v.set(str(self.max_workers_var.get()))  # Default to max_workers
             elif lbl == "Tasks":
                 v.set("1")  # Usually 1 for this type of job
-            tk.Entry(sb, textvariable=v, width=20).grid(row=i, column=1, sticky="w")
+            entry = tk.Entry(sb, textvariable=v, width=30, font=("Arial", 13))
+            entry.grid(row=i, column=1, sticky="w", padx=5, pady=5)
+            create_tooltip(entry, tooltip)
             self.sbatch_vars.append(v)
 
         # --- File selectors & Generate ---
-        files = tk.Frame(self.scrollable_frame)
-        files.grid(row=4, column=0, padx=10, pady=10, sticky="ew")
-        tk.Label(files, text="Main script file:*").grid(row=0, column=0, sticky="e")
+        files = tk.LabelFrame(self.scrollable_frame, text="Output Files", 
+                             font=("Arial", 14, "bold"), fg='#2c3e50', bg='#f0f0f0',
+                             relief='groove', borderwidth=1)
+        files.grid(row=4, column=0, padx=15, pady=10, sticky="ew")
+        
+        tk.Label(files, text="Main script file:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=0, sticky="e", padx=5, pady=5)
         self.mainfile_var = tk.StringVar()
-        tk.Entry(files, textvariable=self.mainfile_var, width=40).grid(row=0, column=1)
-        tk.Button(files, text="Save As...", command=self.save_mainfile).grid(
-            row=0, column=2
+        main_entry = tk.Entry(files, textvariable=self.mainfile_var, width=60, font=("Arial", 13))
+        main_entry.grid(row=0, column=1, padx=5, pady=5)
+        create_tooltip(main_entry, "Python script filename that will contain the generated pipeline code")
+        tk.Button(files, text="Save As...", command=self.save_mainfile, font=("Arial", 13)).grid(
+            row=0, column=2, padx=5, pady=5
         )
-        tk.Label(files, text="Submit script file:*").grid(row=1, column=0, sticky="e")
+        
+        tk.Label(files, text="Submit script file:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=0, sticky="e", padx=5, pady=5)
         self.submitfile_var = tk.StringVar()
-        tk.Entry(files, textvariable=self.submitfile_var, width=40).grid(
-            row=1, column=1
-        )
-        tk.Button(files, text="Save As...", command=self.save_submitfile).grid(
-            row=1, column=2
+        submit_entry = tk.Entry(files, textvariable=self.submitfile_var, width=60, font=("Arial", 13))
+        submit_entry.grid(row=1, column=1, padx=5, pady=5)
+        create_tooltip(submit_entry, "SLURM batch script filename for submitting the job to the cluster")
+        tk.Button(files, text="Save As...", command=self.save_submitfile, font=("Arial", 13)).grid(
+            row=1, column=2, padx=5, pady=5
         )
 
         # Generate button with enhanced styling
-        generate_frame = tk.Frame(self.scrollable_frame)
-        generate_frame.grid(row=5, column=0, pady=10)
+        generate_frame = tk.Frame(self.scrollable_frame, bg='#f0f0f0')
+        generate_frame.grid(row=5, column=0, pady=20)
         
-        tk.Button(generate_frame, text="Generate Optimized Pipeline Files", 
-                 command=self.generate_files, bg="lightgreen", 
-                 font=("Arial", 10, "bold"), padx=20, pady=5).pack(side=tk.LEFT, padx=5)
+        generate_btn = tk.Button(generate_frame, text="Generate Optimized Pipeline Files", 
+                 command=self.generate_files, bg="#52c77a", fg="black", 
+                 font=("Arial", 16, "bold"), padx=30, pady=12,
+                 relief='raised', borderwidth=2, cursor='hand2')
+        generate_btn.pack(side=tk.LEFT, padx=10)
+        create_tooltip(generate_btn, "Generate the main Python script and SLURM submission script based on your configuration")
         
-        tk.Button(generate_frame, text="Benchmark Performance", 
-                 command=self.generate_benchmark, bg="lightblue",
-                 font=("Arial", 10), padx=15, pady=5).pack(side=tk.LEFT, padx=5)
+        benchmark_btn = tk.Button(generate_frame, text="Benchmark Performance", 
+                 command=self.generate_benchmark, bg="#5dade3", fg="black",
+                 font=("Arial", 14), padx=25, pady=10,
+                 relief='raised', borderwidth=2, cursor='hand2')
+        benchmark_btn.pack(side=tk.LEFT, padx=10)
+        create_tooltip(benchmark_btn, "Generate test scripts to measure performance improvements and validate functionality")
 
         # Load last inputs if any
         self.load_config()
@@ -341,6 +564,7 @@ class PipelineGUI(tk.Tk):
             "com_parallel": self.com_parallel.get(),
             "com_memmap": self.com_memmap.get(),
             "a2": [v.get() for v in self.a2_vars],
+            "calc_type": self.calc_type_var.get(),
             "a2_chunk_processing": self.a2_chunk_processing.get(),
             "a2_validate": self.a2_validate.get(),
             "sbatch": [v.get() for v in self.sbatch_vars],
@@ -387,6 +611,7 @@ class PipelineGUI(tk.Tk):
 
         for v,val in zip(self.a2_vars, data.get("a2",[])):
             v.set(val)
+        self.calc_type_var.set(data.get("calc_type", "alpha2_msd"))
         self.a2_chunk_processing.set(data.get("a2_chunk_processing", True))
         self.a2_validate.set(data.get("a2_validate", True))
 
@@ -613,36 +838,68 @@ if __name__ == "__main__":
                     ""
                 ])
 
-            # Step 4: Alpha2 MSD (always runs)
+            # Step 4: Non-Gaussian Parameter Calculation (always runs)
             in4,out4,np2,minf = [v.get().strip() for v in self.a2_vars]
+            calc_type = self.calc_type_var.get()
             chunk_processing = self.a2_chunk_processing.get()
             validate_data = self.a2_validate.get()
             
+            if calc_type == "alpha2_msd":
+                lines.extend([
+                    "    # Step 4: α₂(t) and MSD Calculation (Optimized)",
+                    "    print('\\nStep 4: Computing MSD and α₂(t) parameter...')",
+                    "    try:",
+                    "        from main_functions.alpha2_MSD import a2_MSD",
+                    f"        results_alpha2 = a2_MSD(",
+                    f"            baseDir={repr(bd)},",
+                    f"            INdir={repr(in4)},",
+                    f"            OUTdir={repr(out4)},",
+                    f"            num_dcd={nd},",
+                    f"            partcl_num=int({np2}),",
+                    f"            numFrames=int({minf}),",
+                    f"            chunk_processing={chunk_processing},",
+                    f"            validate_data={validate_data}",
+                    "        )",
+                    "        all_results['alpha2_MSD'] = results_alpha2",
+                    "        if results_alpha2['success'] > 0:",
+                    "            print(f'✓ α₂(t) and MSD calculation completed using {results_alpha2[\"success\"]} trajectory files')",
+                    "            print(f'  Data quality: {results_alpha2.get(\"data_quality\", {})}')",
+                    "        else:",
+                    "            print('✗ α₂(t) and MSD calculation failed')",
+                    "    except Exception as e:",
+                    "        print(f'✗ α₂(t) and MSD calculation failed: {e}')",
+                    "        sys.exit(1)",
+                    ""
+                ])
+            else:  # alpha_xz
+                lines.extend([
+                    "    # Step 4: α_xz(t) Calculation (Optimized)",
+                    "    print('\\nStep 4: Computing α_xz(t) parameter...')",
+                    "    try:",
+                    "        from main_functions.axz import alpha_xz",
+                    f"        results_alpha_xz = alpha_xz(",
+                    f"            baseDir={repr(bd)},",
+                    f"            INdir={repr(in4)},",
+                    f"            OUTdir={repr(out4)},",
+                    f"            num_dcd={nd},",
+                    f"            partcl_num=int({np2}),",
+                    f"            numFrames=int({minf}),",
+                    f"            chunk_processing={chunk_processing},",
+                    f"            validate_data={validate_data}",
+                    "        )",
+                    "        all_results['alpha_xz'] = results_alpha_xz",
+                    "        if results_alpha_xz['success'] > 0:",
+                    "            print(f'✓ α_xz(t) calculation completed using {results_alpha_xz[\"success\"]} trajectory files')",
+                    "            print(f'  Data quality: {results_alpha_xz.get(\"data_quality\", {})}')",
+                    "        else:",
+                    "            print('✗ α_xz(t) calculation failed')",
+                    "    except Exception as e:",
+                    "        print(f'✗ α_xz(t) calculation failed: {e}')",
+                    "        sys.exit(1)",
+                    ""
+                ])
+
             lines.extend([
-                "    # Step 4: α₂(t) and MSD Calculation (Optimized)",
-                "    print('\\nStep 4: Computing MSD and α₂(t) parameter...')",
-                "    try:",
-                "        from main_functions.alpha2_MSD import a2_MSD",
-                f"        results_alpha2 = a2_MSD(",
-                f"            baseDir={repr(bd)},",
-                f"            INdir={repr(in4)},",
-                f"            OUTdir={repr(out4)},",
-                f"            num_dcd={nd},",
-                f"            partcl_num=int({np2}),",
-                f"            numFrames=int({minf}),",
-                f"            chunk_processing={chunk_processing},",
-                f"            validate_data={validate_data}",
-                "        )",
-                "        all_results['alpha2_MSD'] = results_alpha2",
-                "        if results_alpha2['success'] > 0:",
-                "            print(f'✓ α₂(t) and MSD calculation completed using {results_alpha2[\"success\"]} trajectory files')",
-                "            print(f'  Data quality: {results_alpha2.get(\"data_quality\", {})}')",
-                "        else:",
-                "            print('✗ α₂(t) and MSD calculation failed')",
-                "    except Exception as e:",
-                "        print(f'✗ α₂(t) and MSD calculation failed: {e}')",
-                "        sys.exit(1)",
-                "",
                 "    # Summary",
                 "    total_time = time.time() - start_time",
                 "    print('\\n' + '='*60)",
