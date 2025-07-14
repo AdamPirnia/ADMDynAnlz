@@ -1,6 +1,10 @@
 # a2\_MSD Pipeline App - Optimized Version
 
-A comprehensive **molecular dynamics analysis pipeline** for generating **Mean‑Square‑Displacement (MSD)** and **non‑Gaussian parameter (α₂)** analyses from NAMD DCD trajectories—now with **3-10x performance improvements**, parallel processing, and enhanced reliability.
+A comprehensive **molecular dynamics analysis pipeline** for generating **Mean‑Square‑Displacement (MSD)** and **non‑Gaussian parameter** analyses from NAMD DCD trajectories—now with **3-10x performance improvements**, parallel processing, and enhanced reliability.
+
+**Available Calculations:**
+- **α₂(t) and MSD**: Standard non-Gaussian parameter α₂(t) = 3⟨Δr⁴⟩/(5⟨Δr²⟩²) - 1 with mean square displacement
+- **α_xz(t)**: Directional correlation parameter α_xz(t) = ⟨Δx²·Δz²⟩/(⟨Δx²⟩·⟨Δz²⟩) - 1 for anisotropic analysis
 
 ## 🚀 **New in Optimized Version v2.0**
 
@@ -47,6 +51,10 @@ $ python3 a2_MSD_pipeline.py
 
 ### **Option 2: Standalone Executable**
 
+**🖱️ Double-Click to Run (All Platforms):**
+Simply double-click the appropriate executable file for your operating system - no additional setup required!
+
+**Command Line Alternative:**
 ```bash
 # Linux
 $ chmod +x alpha2_MSD_pip_Linux
@@ -75,6 +83,7 @@ $ ./alpha2_MSD_pip_mac_x86_64
 ![An example](example.png)
 
 ### **New Optimization Controls**
+- **Dual calculation modes**: Choose between α₂(t)/MSD or α_xz(t) analysis
 - **Auto-detected CPU cores** with configurable parallel workers
 - **Per-step optimization settings**: VMD parallel execution, chunked processing, memory mapping
 - **Scrollable interface**: Works perfectly on laptops and small screens
@@ -90,13 +99,18 @@ $ ./alpha2_MSD_pip_mac_x86_64
 |  1   | Extract raw coordinates (`coordinates_extract`) | **Parallel VMD execution, bug fixes, timeout protection** | User‑chosen OUTdir |
 |  2   | Unwrap PBC (`unwrap_coords`)                    | **Chunked processing, parallel files, auto-scaling**     | User‑chosen OUTdir |
 |  3   | Center‑of‑Mass calc (`COM_calc`)                | **Vectorized NumPy operations, memory mapping, 10x faster** | User‑chosen OUTdir |
-|  4   | MSD & α₂ (`alpha2_MSD`)                         | **Numerical stability, chunk processing, data validation** | User‑chosen OUTdir |
+|  4   | **Statistical Analysis** (`alpha2_MSD` or `alpha_xz`) | **Dual calculation modes, numerical stability, enhanced validation** | User‑chosen OUTdir |
+
+### **Step 4 Calculation Options:**
+- **α₂(t) and MSD**: Computes standard non-Gaussian parameter and mean square displacement
+- **α_xz(t)**: Computes directional correlation parameter for anisotropic diffusion analysis
 
 ### **Performance Improvements**
 - **coordinates_extract**: Fixed critical data corruption bugs, added parallel processing
 - **unwrap_coords**: Memory-efficient chunked processing, 3-5x faster
 - **COM_calc**: Highly optimized vectorized operations, ~10x performance boost
 - **alpha2_MSD**: Enhanced numerical stability, prevents division by zero
+- **alpha_xz**: New directional correlation analysis with same optimization framework
 
 ---
 
@@ -127,8 +141,9 @@ $ python3 performance_benchmark.py
 ### **Basic Setup**
 1. **Common Parameters** – Base directory, number of DCDs, **max workers** (auto-detected)
 2. **Step-by-Step Optimization** – Configure parallel processing for each pipeline step
-3. **SLURM Configuration** – Partition, wall‑time, CPUs (auto-populated), email
-4. **Generate & Benchmark** – Create optimized scripts and performance tests
+3. **Calculation Type Selection** – Choose between α₂(t)/MSD or α_xz(t) analysis
+4. **SLURM Configuration** – Partition, wall‑time, CPUs (auto-populated), email
+5. **Generate & Benchmark** – Create optimized scripts and performance tests
 
 ### **Advanced Features**
 - **Parallel Processing**: Enable/disable for each step individually
@@ -242,7 +257,8 @@ The optimized GUI generates production-ready scripts with:
 | **unwrap_coords** | Memory intensive | Chunked processing | **3-5x + Memory Efficient** |
 | **COM_calc** | Loop-based calculations | Vectorized NumPy operations | **~10x faster** |
 | **alpha2_MSD** | Unstable numerics | Enhanced stability | **Reliable + Faster** |
-| **Overall Pipeline** | Sequential processing | Parallel + optimized | **3-10x end-to-end** |
+| **alpha_xz** | New functionality | Optimized directional analysis | **New + Efficient** |
+| **Overall Pipeline** | Sequential processing | Parallel + dual modes | **3-10x end-to-end** |
 
 ---
 
