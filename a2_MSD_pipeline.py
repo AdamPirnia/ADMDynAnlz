@@ -723,15 +723,41 @@ class PipelineGUI(tk.Tk):
             # Copy main_functions folder to output directory if it doesn't exist
             main_functions_dest = os.path.join(output_path, "main_functions")
             if not os.path.exists(main_functions_dest):
-                # Look for main_functions folder
-                current_dir = os.path.dirname(os.path.abspath(__file__))
-                main_functions_src = os.path.join(current_dir, "main_functions")
+                # Look for main_functions folder with multiple fallback paths
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                current_dir = os.getcwd()
                 
-                if os.path.exists(main_functions_src):
-                    shutil.copytree(main_functions_src, main_functions_dest)
-                    print(f"Copied main_functions to {main_functions_dest}")
+                # Try multiple potential locations for main_functions
+                potential_paths = [
+                    os.path.join(script_dir, "main_functions"),          # Same dir as script
+                    os.path.join(current_dir, "main_functions"),         # Current working dir
+                    os.path.join(os.path.dirname(script_dir), "main_functions"),  # Parent dir
+                    "main_functions"  # Relative path
+                ]
+                
+                main_functions_src = None
+                for path in potential_paths:
+                    if os.path.exists(path):
+                        main_functions_src = path
+                        break
+                
+                if main_functions_src:
+                    try:
+                        shutil.copytree(main_functions_src, main_functions_dest)
+                        print(f"Copied main_functions from {main_functions_src} to {main_functions_dest}")
+                    except Exception as e:
+                        raise ValueError(f"Failed to copy main_functions folder: {e}")
                 else:
-                    raise ValueError("main_functions folder not found. Please ensure it exists in the current directory.")
+                    # Provide detailed error information
+                    error_msg = f"main_functions folder not found. Searched in:\n"
+                    error_msg += f"  Script directory: {script_dir}\n"
+                    error_msg += f"  Current directory: {current_dir}\n"
+                    error_msg += f"  Checked paths:\n"
+                    for path in potential_paths:
+                        exists = "✓" if os.path.exists(path) else "✗"
+                        error_msg += f"    {exists} {path}\n"
+                    error_msg += f"Please ensure the main_functions folder exists in one of these locations."
+                    raise ValueError(error_msg)
             
             benchmark_file = os.path.join(output_path, "run_benchmark.py")
             
@@ -829,15 +855,41 @@ if __name__ == "__main__":
             # Copy main_functions folder to output directory if it doesn't exist
             main_functions_dest = os.path.join(output_path, "main_functions")
             if not os.path.exists(main_functions_dest):
-                # Look for main_functions folder
-                current_dir = os.path.dirname(os.path.abspath(__file__))
-                main_functions_src = os.path.join(current_dir, "main_functions")
+                # Look for main_functions folder with multiple fallback paths
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                current_dir = os.getcwd()
                 
-                if os.path.exists(main_functions_src):
-                    shutil.copytree(main_functions_src, main_functions_dest)
-                    print(f"Copied main_functions to {main_functions_dest}")
+                # Try multiple potential locations for main_functions
+                potential_paths = [
+                    os.path.join(script_dir, "main_functions"),          # Same dir as script
+                    os.path.join(current_dir, "main_functions"),         # Current working dir
+                    os.path.join(os.path.dirname(script_dir), "main_functions"),  # Parent dir
+                    "main_functions"  # Relative path
+                ]
+                
+                main_functions_src = None
+                for path in potential_paths:
+                    if os.path.exists(path):
+                        main_functions_src = path
+                        break
+                
+                if main_functions_src:
+                    try:
+                        shutil.copytree(main_functions_src, main_functions_dest)
+                        print(f"Copied main_functions from {main_functions_src} to {main_functions_dest}")
+                    except Exception as e:
+                        raise ValueError(f"Failed to copy main_functions folder: {e}")
                 else:
-                    raise ValueError("main_functions folder not found. Please ensure it exists in the current directory.")
+                    # Provide detailed error information
+                    error_msg = f"main_functions folder not found. Searched in:\n"
+                    error_msg += f"  Script directory: {script_dir}\n"
+                    error_msg += f"  Current directory: {current_dir}\n"
+                    error_msg += f"  Checked paths:\n"
+                    for path in potential_paths:
+                        exists = "✓" if os.path.exists(path) else "✗"
+                        error_msg += f"    {exists} {path}\n"
+                    error_msg += f"Please ensure the main_functions folder exists in one of these locations."
+                    raise ValueError(error_msg)
 
             # --- Build the lines of the Python driver ---
             lines = [
