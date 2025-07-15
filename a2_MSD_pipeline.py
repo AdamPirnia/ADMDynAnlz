@@ -95,7 +95,7 @@ class ToolTip:
         
         label = tk.Label(tw, text=self.text, justify=tk.LEFT,
                       background="#f8f8f8", relief=tk.SOLID, borderwidth=1,
-                      font=("Arial", 12, "normal"), wraplength=350, fg='#2c3e50')
+                      font=("Arial", 10, "normal"), wraplength=350, fg='#2c3e50')
         label.pack(ipadx=1)
 
     def hidetip(self):
@@ -111,8 +111,8 @@ def create_tooltip(widget, text):
 class PipelineGUI(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("MD Analysis Pipeline GUI - Optimized Version")
-        self.geometry("1200x1400")  # Significantly increased resolution
+        self.title("MD Dynamics Analysis Pipeline")
+        self.geometry("1050x1100")  # Optimized for 27" wide screen
         self.configure(bg='#f0f0f0')  # Light gray background for modern look
         
         # Configure ttk styling for better appearance
@@ -125,9 +125,10 @@ class PipelineGUI(tk.Tk):
         self.main_frame = tk.Frame(self, bg='#f0f0f0')
         self.main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Create canvas and scrollbar
+        # Create canvas and scrollbars
         self.canvas = tk.Canvas(self.main_frame, bg='#f0f0f0', highlightthickness=0)
-        self.scrollbar = ttk.Scrollbar(self.main_frame, orient="vertical", command=self.canvas.yview)
+        self.v_scrollbar = ttk.Scrollbar(self.main_frame, orient="vertical", command=self.canvas.yview)
+        self.h_scrollbar = ttk.Scrollbar(self.main_frame, orient="horizontal", command=self.canvas.xview)
         self.scrollable_frame = tk.Frame(self.canvas, bg='#f0f0f0')
 
         # Configure scrollable frame
@@ -138,21 +139,32 @@ class PipelineGUI(tk.Tk):
 
         # Create window in canvas
         self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
-        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.canvas.configure(yscrollcommand=self.v_scrollbar.set, xscrollcommand=self.h_scrollbar.set)
 
-        # Pack canvas and scrollbar
-        self.canvas.pack(side="left", fill="both", expand=True)
-        self.scrollbar.pack(side="right", fill="y")
+        # Pack canvas and scrollbars
+        self.canvas.grid(row=0, column=0, sticky="nsew")
+        self.v_scrollbar.grid(row=0, column=1, sticky="ns")
+        self.h_scrollbar.grid(row=1, column=0, sticky="ew")
+        
+        # Configure grid weights for proper resizing
+        self.main_frame.grid_rowconfigure(0, weight=1)
+        self.main_frame.grid_columnconfigure(0, weight=1)
 
         # Bind mouse wheel to canvas (Windows)
         self.canvas.bind("<MouseWheel>", self._on_mousewheel)
+        self.canvas.bind("<Shift-MouseWheel>", self._on_horizontal_mousewheel)
         self.bind_all("<MouseWheel>", self._on_mousewheel)
+        self.bind_all("<Shift-MouseWheel>", self._on_horizontal_mousewheel)
         
         # Bind mouse wheel for Linux
         self.canvas.bind("<Button-4>", self._on_mousewheel)
         self.canvas.bind("<Button-5>", self._on_mousewheel)
+        self.canvas.bind("<Shift-Button-4>", self._on_horizontal_mousewheel)
+        self.canvas.bind("<Shift-Button-5>", self._on_horizontal_mousewheel)
         self.bind_all("<Button-4>", self._on_mousewheel)
         self.bind_all("<Button-5>", self._on_mousewheel)
+        self.bind_all("<Shift-Button-4>", self._on_horizontal_mousewheel)
+        self.bind_all("<Shift-Button-5>", self._on_horizontal_mousewheel)
         
         # Bind canvas click to focus
         self.canvas.bind("<Button-1>", lambda e: self.canvas.focus_set())
@@ -161,44 +173,44 @@ class PipelineGUI(tk.Tk):
         header_frame = tk.Frame(self.scrollable_frame, bg='#f0f0f0')
         header_frame.grid(row=0, column=0, sticky="ew", padx=15, pady=(15,0))
         
-        tk.Label(header_frame, text="MD Analysis Pipeline GUI", 
-                font=("Arial", 18, "bold"), fg='#2c3e50', bg='#f0f0f0').pack(anchor='w')
-        tk.Label(header_frame, text="* Required fields | Optimized Pipeline v2.0", 
-                font=("Arial", 12), fg='#7f8c8d', bg='#f0f0f0').pack(anchor='w')
+        tk.Label(header_frame, text="MD Dynamics Analysis", 
+                font=("Arial", 14, "bold"), fg='#2c3e50', bg='#f0f0f0').pack(anchor='w')
+        tk.Label(header_frame, text="* Required fields | v2.0.1", 
+                font=("Arial", 8), fg='#7f8c8d', bg='#f0f0f0').pack(anchor='w')
 
         # --- Common Parameters ---
         common = tk.LabelFrame(self.scrollable_frame, text="Common Parameters", 
-                              font=("Arial", 14, "bold"), fg='#2c3e50', bg='#f0f0f0',
+                              font=("Arial", 11, "bold"), fg='#2c3e50', bg='#f0f0f0',
                               relief='groove', borderwidth=1)
         common.grid(row=1, column=0, padx=15, pady=10, sticky="ew")
 
-        tk.Label(common, text="Base Directory:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(common, text="Base Directory:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=0, sticky="e", padx=5, pady=5)
         self.baseDir_var = tk.StringVar()
-        base_entry = tk.Entry(common, textvariable=self.baseDir_var, width=70, font=("Arial", 13), 
+        base_entry = tk.Entry(common, textvariable=self.baseDir_var, width=70, font=("Arial", 10), 
                              relief='solid', borderwidth=1)
         base_entry.grid(row=0, column=1, padx=5, pady=5)
         create_tooltip(base_entry, "Root directory containing all simulation data and analysis folders")
-        tk.Button(common, text="Browse...", command=self.browse_baseDir, font=("Arial", 13),
+        tk.Button(common, text="Browse...", command=self.browse_baseDir, font=("Arial", 10),
                  bg='#ecf0f1', fg='#2c3e50', relief='raised', borderwidth=1, cursor='hand2').grid(
             row=0, column=2, padx=5, pady=5
         )
 
-        tk.Label(common, text="Number of DCDs:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(common, text="Number of DCDs:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=0, sticky="e", padx=5, pady=5)
         self.num_dcd_var = tk.IntVar(value=1)
-        dcd_entry = tk.Entry(common, textvariable=self.num_dcd_var, width=15, font=("Arial", 13),
+        dcd_entry = tk.Entry(common, textvariable=self.num_dcd_var, width=15, font=("Arial", 10),
                             relief='solid', borderwidth=1)
         dcd_entry.grid(row=1, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(dcd_entry, "Total number of trajectory DCD files to process (e.g., 100 for com_0.dat through com_99.dat)")
 
         # Global parallel processing settings
-        tk.Label(common, text="Max Workers:", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=2, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(common, text="Max Workers:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=2, column=0, sticky="e", padx=5, pady=5)
         self.max_workers_var = tk.IntVar(value=min(4, mp.cpu_count()))
-        workers_entry = tk.Entry(common, textvariable=self.max_workers_var, width=15, font=("Arial", 13),
+        workers_entry = tk.Entry(common, textvariable=self.max_workers_var, width=15, font=("Arial", 10),
                                 relief='solid', borderwidth=1)
         workers_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(workers_entry, "Number of CPU cores to use for parallel processing. Higher values = faster computation but more memory usage")
         tk.Label(common, text=f"(auto-detected: {mp.cpu_count()} cores)", 
-                font=("Arial", 12), bg='#f0f0f0', fg='#7f8c8d').grid(row=2, column=2, sticky="w", padx=5)
+                font=("Arial", 9), bg='#f0f0f0', fg='#7f8c8d').grid(row=2, column=2, sticky="w", padx=5)
 
         # --- Steps container ---
         steps = tk.Frame(self.scrollable_frame, bg='#f0f0f0')
@@ -206,69 +218,83 @@ class PipelineGUI(tk.Tk):
 
         # ----- STEP 1: Coordinate Extraction -----
         self.skip1 = tk.BooleanVar(value=False)
-        coords = tk.LabelFrame(steps, text="Step 1: coordinates_extract (Optimized)",
-                              font=("Arial", 14, "bold"), fg='#2c3e50', bg='#f0f0f0',
-                              relief='groove', borderwidth=1)
-        coords.grid(row=0, column=0, padx=5, pady=5, sticky="nw")
-        skip1_check = tk.Checkbutton(
-            coords, text="Skip Step 1", variable=self.skip1,
-            command=lambda: self.toggle_frame(coords, self.skip1.get()),
-            font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0'
-        )
-        skip1_check.grid(row=0, column=2, padx=5, pady=5)
+        coords_frame = tk.Frame(steps, bg='#f0f0f0')
+        coords_frame.grid(row=0, column=0, padx=5, pady=5, sticky="nw")
+        
+        # Create title frame with skip checkbox
+        title_frame = tk.Frame(coords_frame, bg='#f0f0f0')
+        title_frame.pack(fill="x", padx=2, pady=2)
+        
+        tk.Label(title_frame, text="Step 1: coordinates_extract (Optimized)", 
+                font=("Arial", 11, "bold"), fg='#2c3e50', bg='#f0f0f0').pack(side="left")
+        skip1_check = tk.Checkbutton(title_frame, text="Skip", variable=self.skip1,
+                                    command=lambda: self.toggle_frame(coords, self.skip1.get()),
+                                    font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50', 
+                                    selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        skip1_check.pack(side="right", padx=10)
         create_tooltip(skip1_check, "Skip coordinate extraction step if already completed")
+        
+        coords = tk.LabelFrame(coords_frame, text="", relief='groove', borderwidth=1, bg='#f0f0f0')
+        coords.pack(fill="both", expand=True, padx=2, pady=2)
 
         labels1 = ["INdir","OUTdir","PSF base","DCD base","Particles","Resname","VMD path"]
         self.coords_vars = []
-        for i, lbl in enumerate(labels1, start=1):
-            tk.Label(coords, text=f"{lbl}:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=i, column=0, sticky="e", padx=5, pady=5)
+        for i, lbl in enumerate(labels1, start=0):
+            tk.Label(coords, text=f"{lbl}:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=i, column=0, sticky="e", padx=5, pady=5)
             v = tk.StringVar()
-            ent = tk.Entry(coords, textvariable=v, width=30, font=("Arial", 13), relief='solid', borderwidth=1)
+            ent = tk.Entry(coords, textvariable=v, width=30, font=("Arial", 10), relief='solid', borderwidth=1)
             ent.grid(row=i, column=1, padx=5, pady=5)
             if lbl=="VMD path":
-                tk.Button(coords, text="Browse...", command=self.browse_vmd, font=("Arial", 13),
+                tk.Button(coords, text="Browse...", command=self.browse_vmd, font=("Arial", 10),
                          bg='#ecf0f1', fg='#2c3e50', relief='raised', borderwidth=1, cursor='hand2').grid(
                     row=i, column=2, padx=5, pady=5
                 )
             elif lbl=="Particles":
-                tk.Label(coords, text='e.g., "0 to 999"', font=("Arial", 10), bg='#f0f0f0', fg='#7f8c8d').grid(
+                tk.Label(coords, text='e.g., "0 to 999"', font=("Arial", 7), bg='#f0f0f0', fg='#7f8c8d').grid(
                     row=i, column=2, sticky="w", padx=5
                 )
             self.coords_vars.append(v)
         
         # Advanced options for coordinates_extract
-        tk.Label(coords, text="Use Parallel VMD:", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=len(labels1)+1, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(coords, text="Use Parallel VMD:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=len(labels1), column=0, sticky="e", padx=5, pady=5)
         self.coords_parallel = tk.BooleanVar(value=True)
-        coords_parallel_check = tk.Checkbutton(coords, variable=self.coords_parallel, font=("Arial", 13), 
+        coords_parallel_check = tk.Checkbutton(coords, variable=self.coords_parallel, font=("Arial", 10), 
                                               bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
-        coords_parallel_check.grid(row=len(labels1)+1, column=1, sticky="w", padx=5, pady=5)
+        coords_parallel_check.grid(row=len(labels1), column=1, sticky="w", padx=5, pady=5)
         create_tooltip(coords_parallel_check, "Enable parallel VMD processing for faster coordinate extraction")
         
         self.toggle_frame(coords, self.skip1.get())
 
         # ----- STEP 2: Unwrap Coordinates -----
         self.skip2 = tk.BooleanVar(value=False)
-        unwrap = tk.LabelFrame(steps, text="Step 2: unwrap_coords (Optimized)",
-                              font=("Arial", 14, "bold"), fg='#2c3e50', bg='#f0f0f0',
-                              relief='groove', borderwidth=1)
-        unwrap.grid(row=0, column=1, padx=5, pady=5, sticky="nw")
-        skip2_check = tk.Checkbutton(
-            unwrap, text="Skip Step 2", variable=self.skip2,
-            command=lambda: self.toggle_frame(unwrap, self.skip2.get()),
-            font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0'
-        )
-        skip2_check.grid(row=0, column=2, padx=5, pady=5)
+        unwrap_frame = tk.Frame(steps, bg='#f0f0f0')
+        unwrap_frame.grid(row=0, column=1, padx=5, pady=5, sticky="nw")
+        
+        # Create title frame with skip checkbox
+        title_frame2 = tk.Frame(unwrap_frame, bg='#f0f0f0')
+        title_frame2.pack(fill="x", padx=2, pady=2)
+        
+        tk.Label(title_frame2, text="Step 2: unwrap_coords (Optimized)", 
+                font=("Arial", 11, "bold"), fg='#2c3e50', bg='#f0f0f0').pack(side="left")
+        skip2_check = tk.Checkbutton(title_frame2, text="Skip", variable=self.skip2,
+                                    command=lambda: self.toggle_frame(unwrap, self.skip2.get()),
+                                    font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50', 
+                                    selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        skip2_check.pack(side="right", padx=10)
         create_tooltip(skip2_check, "Skip coordinate unwrapping step if already completed")
+        
+        unwrap = tk.LabelFrame(unwrap_frame, text="", relief='groove', borderwidth=1, bg='#f0f0f0')
+        unwrap.pack(fill="both", expand=True, padx=2, pady=2)
 
         labels2 = ["INdir","OUTdir","XSC file","Num atoms"]
         self.unwrap_vars = []
-        for i, lbl in enumerate(labels2, start=1):
-            tk.Label(unwrap, text=f"{lbl}:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=i, column=0, sticky="e", padx=5, pady=5)
+        for i, lbl in enumerate(labels2, start=0):
+            tk.Label(unwrap, text=f"{lbl}:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=i, column=0, sticky="e", padx=5, pady=5)
             v = tk.StringVar()
-            ent = tk.Entry(unwrap, textvariable=v, width=30, font=("Arial", 13), relief='solid', borderwidth=1)
+            ent = tk.Entry(unwrap, textvariable=v, width=30, font=("Arial", 10), relief='solid', borderwidth=1)
             ent.grid(row=i, column=1, padx=5, pady=5)
             if lbl=="XSC file":
-                tk.Button(unwrap, text="Browse...", command=self.browse_xsc, font=("Arial", 13),
+                tk.Button(unwrap, text="Browse...", command=self.browse_xsc, font=("Arial", 10),
                          bg='#ecf0f1', fg='#2c3e50', relief='raised', borderwidth=1, cursor='hand2').grid(
                     row=i, column=2, padx=5, pady=5
                 )
@@ -276,24 +302,24 @@ class PipelineGUI(tk.Tk):
         
         # Optional interval & stride
         self.unwrap_opt = []
-        for j,lbl in enumerate(["Interval (optional)","Stride (optional)"], start=len(labels2)+1):
-            tk.Label(unwrap, text=f"{lbl}:", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=j, column=0, sticky="e", padx=5, pady=5)
+        for j,lbl in enumerate(["Interval (optional)","Stride (optional)"], start=len(labels2)):
+            tk.Label(unwrap, text=f"{lbl}:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=j, column=0, sticky="e", padx=5, pady=5)
             v = tk.StringVar()
-            ent = tk.Entry(unwrap, textvariable=v, width=30, font=("Arial", 13), relief='solid', borderwidth=1)
+            ent = tk.Entry(unwrap, textvariable=v, width=30, font=("Arial", 10), relief='solid', borderwidth=1)
             ent.grid(row=j, column=1, padx=5, pady=5)
             self.unwrap_opt.append(v)
         
         # Advanced options for unwrap_coords
-        row_offset = len(labels2) + len(self.unwrap_opt) + 1
-        tk.Label(unwrap, text="Chunk Size:", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset, column=0, sticky="e", padx=5, pady=5)
+        row_offset = len(labels2) + len(self.unwrap_opt)
+        tk.Label(unwrap, text="Chunk Size:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset, column=0, sticky="e", padx=5, pady=5)
         self.unwrap_chunk_var = tk.StringVar(value="auto")
-        chunk_entry = tk.Entry(unwrap, textvariable=self.unwrap_chunk_var, width=15, font=("Arial", 13), relief='solid', borderwidth=1)
+        chunk_entry = tk.Entry(unwrap, textvariable=self.unwrap_chunk_var, width=15, font=("Arial", 10), relief='solid', borderwidth=1)
         chunk_entry.grid(row=row_offset, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(chunk_entry, "Memory chunk size for processing large files. Use 'auto' for automatic sizing, or specify number of frames (e.g., 10000)")
         
-        tk.Label(unwrap, text="Use Parallel:", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset+1, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(unwrap, text="Use Parallel:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset+1, column=0, sticky="e", padx=5, pady=5)
         self.unwrap_parallel = tk.BooleanVar(value=True)
-        parallel_check = tk.Checkbutton(unwrap, variable=self.unwrap_parallel, font=("Arial", 13),
+        parallel_check = tk.Checkbutton(unwrap, variable=self.unwrap_parallel, font=("Arial", 10),
                                        bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
         parallel_check.grid(row=row_offset+1, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(parallel_check, "Enable parallel processing for faster unwrapping of coordinates")
@@ -302,70 +328,77 @@ class PipelineGUI(tk.Tk):
 
         # ----- STEP 3: COM Calculation -----
         self.skip3 = tk.BooleanVar(value=False)
-        com = tk.LabelFrame(steps, text="Step 3: COM_calc (Optimized)",
-                           font=("Arial", 14, "bold"), fg='#2c3e50', bg='#f0f0f0',
-                           relief='groove', borderwidth=1)
-        com.grid(row=1, column=0, padx=5, pady=5, sticky="nw")
-        skip3_check = tk.Checkbutton(
-            com, text="Skip Step 3", variable=self.skip3,
-            command=lambda: self.toggle_frame(com, self.skip3.get()),
-            font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0'
-        )
-        skip3_check.grid(row=0, column=2, padx=5, pady=5)
+        com_frame = tk.Frame(steps, bg='#f0f0f0')
+        com_frame.grid(row=1, column=0, padx=5, pady=5, sticky="nw")
+        
+        # Create title frame with skip checkbox
+        title_frame3 = tk.Frame(com_frame, bg='#f0f0f0')
+        title_frame3.pack(fill="x", padx=2, pady=2)
+        
+        tk.Label(title_frame3, text="Step 3: COM_calc (Optimized)", 
+                font=("Arial", 11, "bold"), fg='#2c3e50', bg='#f0f0f0').pack(side="left")
+        skip3_check = tk.Checkbutton(title_frame3, text="Skip", variable=self.skip3,
+                                    command=lambda: self.toggle_frame(com, self.skip3.get()),
+                                    font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50', 
+                                    selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        skip3_check.pack(side="right", padx=10)
         create_tooltip(skip3_check, "Skip COM calculation step if already completed")
+        
+        com = tk.LabelFrame(com_frame, text="", relief='groove', borderwidth=1, bg='#f0f0f0')
+        com.pack(fill="both", expand=True, padx=2, pady=2)
 
         labels3 = ["INdir","OUTdir","Num particles","Atoms per particle","Mass list"]
         self.com_vars = []
-        for i, lbl in enumerate(labels3, start=1):
-            tk.Label(com, text=f"{lbl}:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=i, column=0, sticky="e", padx=5, pady=5)
+        for i, lbl in enumerate(labels3, start=0):
+            tk.Label(com, text=f"{lbl}:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=i, column=0, sticky="e", padx=5, pady=5)
             v = tk.StringVar()
-            ent = tk.Entry(com, textvariable=v, width=30, font=("Arial", 13), relief='solid', borderwidth=1)
+            ent = tk.Entry(com, textvariable=v, width=30, font=("Arial", 10), relief='solid', borderwidth=1)
             ent.grid(row=i, column=1, padx=5, pady=5)
             if lbl=="Mass list":
-                tk.Label(com, text='e.g., "16.0,1.008,1.008"', font=("Arial", 10), bg='#f0f0f0', fg='#7f8c8d').grid(
+                tk.Label(com, text='e.g., "16.0,1.008,1.008"', font=("Arial", 7), bg='#f0f0f0', fg='#7f8c8d').grid(
                     row=i, column=2, sticky="w", padx=5
                 )
             self.com_vars.append(v)
         
         # Advanced options for COM_calc
-        row_offset = len(labels3) + 1
-        tk.Label(com, text="Use Parallel:", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset, column=0, sticky="e", padx=5, pady=5)
+        row_offset = len(labels3)
+        tk.Label(com, text="Use Parallel:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset, column=0, sticky="e", padx=5, pady=5)
         self.com_parallel = tk.BooleanVar(value=True)
-        com_parallel_check = tk.Checkbutton(com, variable=self.com_parallel, font=("Arial", 13),
+        com_parallel_check = tk.Checkbutton(com, variable=self.com_parallel, font=("Arial", 10),
                                            bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
         com_parallel_check.grid(row=row_offset, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(com_parallel_check, "Enable parallel processing for faster COM calculations")
         
-        tk.Label(com, text="Use Memory Map:", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset+1, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(com, text="Use Memory Map:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset+1, column=0, sticky="e", padx=5, pady=5)
         self.com_memmap = tk.BooleanVar(value=False)
-        com_memmap_check = tk.Checkbutton(com, variable=self.com_memmap, font=("Arial", 13),
+        com_memmap_check = tk.Checkbutton(com, variable=self.com_memmap, font=("Arial", 10),
                                          bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
         com_memmap_check.grid(row=row_offset+1, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(com_memmap_check, "Use memory mapping for very large files to reduce memory usage")
-        tk.Label(com, text="(for very large files)", font=("Arial", 10), bg='#f0f0f0', fg='#7f8c8d').grid(row=row_offset+1, column=2, sticky="w", padx=5)
+        tk.Label(com, text="(for very large files)", font=("Arial", 7), bg='#f0f0f0', fg='#7f8c8d').grid(row=row_offset+1, column=2, sticky="w", padx=5)
         
         self.toggle_frame(com, self.skip3.get())
 
         # ----- STEP 4: Alpha2 MSD -----
         a2 = tk.LabelFrame(steps, text="Step 4: Non-Gaussian Parameter Calculation (Optimized - always runs)",
-                          font=("Arial", 14, "bold"), fg='#2c3e50', bg='#f0f0f0',
+                          font=("Arial", 11, "bold"), fg='#2c3e50', bg='#f0f0f0',
                           relief='groove', borderwidth=1)
         a2.grid(row=1, column=1, padx=10, pady=10, sticky="nw")
         
         # Calculation type selection
-        tk.Label(a2, text="Calculation Type:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(a2, text="Calculation Type:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=0, sticky="e", padx=5, pady=5)
         self.calc_type_var = tk.StringVar(value="alpha2_msd")
         calc_frame = tk.Frame(a2, bg='#f0f0f0')
         calc_frame.grid(row=0, column=1, sticky="w", padx=5, pady=5)
         
         # Create font that supports Unicode characters with multiple fallbacks
         unicode_fonts = [
-            ("Segoe UI", 13),           # Windows
-            ("Arial Unicode MS", 13),   # macOS
-            ("DejaVu Sans", 13),        # Linux
-            ("Liberation Sans", 13),    # Linux
-            ("Arial", 13),              # Fallback
-            ("TkDefaultFont", 13)       # System default
+            ("Segoe UI", 10),           # Windows
+            ("Arial Unicode MS", 10),   # macOS
+            ("DejaVu Sans", 10),        # Linux
+            ("Liberation Sans", 10),    # Linux
+            ("Arial", 10),              # Fallback
+            ("TkDefaultFont", 10)       # System default
         ]
         
         unicode_font = None
@@ -380,7 +413,7 @@ class PipelineGUI(tk.Tk):
                 continue
         
         if unicode_font is None:
-            unicode_font = ("TkDefaultFont", 13)
+            unicode_font = ("TkDefaultFont", 10)
         
         # Try Unicode first, fall back to ASCII if needed
         try:
@@ -412,25 +445,25 @@ class PipelineGUI(tk.Tk):
         
         self.a2_vars = []
         for i, (lbl, tooltip) in enumerate(zip(labels4, tooltips4)):
-            tk.Label(a2, text=f"{lbl}:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=i+1, column=0, sticky="e", padx=5, pady=5)
+            tk.Label(a2, text=f"{lbl}:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=i+1, column=0, sticky="e", padx=5, pady=5)
             v = tk.StringVar()
-            entry = tk.Entry(a2, textvariable=v, width=40, font=("Arial", 13))
+            entry = tk.Entry(a2, textvariable=v, width=40, font=("Arial", 10))
             entry.grid(row=i+1, column=1, padx=5, pady=5)
             create_tooltip(entry, tooltip)
             self.a2_vars.append(v)
         
         # Advanced options
         row_offset = len(labels4) + 1
-        tk.Label(a2, text="Chunk Processing:", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(a2, text="Chunk Processing:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset, column=0, sticky="e", padx=5, pady=5)
         self.a2_chunk_processing = tk.BooleanVar(value=True)
-        chunk_check = tk.Checkbutton(a2, variable=self.a2_chunk_processing, font=("Arial", 13),
+        chunk_check = tk.Checkbutton(a2, variable=self.a2_chunk_processing, font=("Arial", 10),
                                     bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
         chunk_check.grid(row=row_offset, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(chunk_check, "Process data in chunks for better memory efficiency with large datasets. Recommended for systems with >1000 particles.")
         
-        tk.Label(a2, text="Validate Data:", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset+1, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(a2, text="Validate Data:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset+1, column=0, sticky="e", padx=5, pady=5)
         self.a2_validate = tk.BooleanVar(value=True)
-        validate_check = tk.Checkbutton(a2, variable=self.a2_validate, font=("Arial", 13),
+        validate_check = tk.Checkbutton(a2, variable=self.a2_validate, font=("Arial", 10),
                                        bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
         validate_check.grid(row=row_offset+1, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(validate_check, "Perform data validation checks during processing. Helps catch errors but adds slight overhead.")
@@ -443,7 +476,7 @@ class PipelineGUI(tk.Tk):
         slurm_container.grid_columnconfigure(2, weight=1)
         
         sb = tk.LabelFrame(slurm_container, text="SLURM Submission Parameters",
-                          font=("Arial", 14, "bold"), fg='#2c3e50', bg='#f0f0f0',
+                          font=("Arial", 11, "bold"), fg='#2c3e50', bg='#f0f0f0',
                           relief='groove', borderwidth=1)
         sb.grid(row=0, column=1)
         
@@ -461,54 +494,54 @@ class PipelineGUI(tk.Tk):
         
         self.sbatch_vars = []
         for i, (lbl, tooltip) in enumerate(zip(sb_labels, sb_tooltips)):
-            tk.Label(sb, text=f"{lbl}:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=i, column=0, sticky="e", padx=5, pady=5)
+            tk.Label(sb, text=f"{lbl}:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=i, column=0, sticky="e", padx=5, pady=5)
             v = tk.StringVar()
             if lbl == "CPUs":
                 v.set(str(self.max_workers_var.get()))  # Default to max_workers
             elif lbl == "Tasks":
                 v.set("1")  # Usually 1 for this type of job
-            entry = tk.Entry(sb, textvariable=v, width=30, font=("Arial", 13))
+            entry = tk.Entry(sb, textvariable=v, width=30, font=("Arial", 10))
             entry.grid(row=i, column=1, sticky="w", padx=5, pady=5)
             create_tooltip(entry, tooltip)
             self.sbatch_vars.append(v)
 
         # --- File selectors & Generate ---
         files = tk.LabelFrame(self.scrollable_frame, text="Output Files", 
-                             font=("Arial", 14, "bold"), fg='#2c3e50', bg='#f0f0f0',
+                             font=("Arial", 11, "bold"), fg='#2c3e50', bg='#f0f0f0',
                              relief='groove', borderwidth=1)
         files.grid(row=4, column=0, padx=15, pady=10, sticky="ew")
         
-        tk.Label(files, text="Output folder name:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(files, text="Output folder name:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=0, sticky="e", padx=5, pady=5)
         self.output_folder_var = tk.StringVar(value="pipeline_run")
         # Add callback to clear browse path when user manually types folder name
         self.output_folder_var.trace('w', self.on_folder_name_changed)
-        folder_entry = tk.Entry(files, textvariable=self.output_folder_var, width=60, font=("Arial", 13))
+        folder_entry = tk.Entry(files, textvariable=self.output_folder_var, width=60, font=("Arial", 10))
         folder_entry.grid(row=0, column=1, padx=5, pady=5)
         create_tooltip(folder_entry, "Name of the folder to contain all generated files and main_functions. Use the Browse button to select a specific location, or it will be created in the current directory. This self-contained folder can be uploaded directly to your target computer without additional setup.")
-        tk.Button(files, text="Browse...", command=self.browse_output_folder, font=("Arial", 13)).grid(
+        tk.Button(files, text="Browse...", command=self.browse_output_folder, font=("Arial", 10)).grid(
             row=0, column=2, padx=5, pady=5
         )
         
         # Show current output path
-        self.output_path_label = tk.Label(files, text="", font=("Arial", 10), bg='#f0f0f0', fg='#7f8c8d', wraplength=600)
+        self.output_path_label = tk.Label(files, text="", font=("Arial", 7), bg='#f0f0f0', fg='#7f8c8d', wraplength=600)
         self.output_path_label.grid(row=0, column=3, columnspan=2, sticky="w", padx=5)
         self.update_output_path_label()
         
-        tk.Label(files, text="Main script file:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(files, text="Main script file:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=0, sticky="e", padx=5, pady=5)
         self.mainfile_var = tk.StringVar()
-        main_entry = tk.Entry(files, textvariable=self.mainfile_var, width=60, font=("Arial", 13))
+        main_entry = tk.Entry(files, textvariable=self.mainfile_var, width=60, font=("Arial", 10))
         main_entry.grid(row=1, column=1, padx=5, pady=5)
         create_tooltip(main_entry, "Python script filename (will be created in output folder)")
-        tk.Button(files, text="Save As...", command=self.save_mainfile, font=("Arial", 13)).grid(
+        tk.Button(files, text="Save As...", command=self.save_mainfile, font=("Arial", 10)).grid(
             row=1, column=2, padx=5, pady=5
         )
         
-        tk.Label(files, text="Submit script file:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=2, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(files, text="Submit script file:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=2, column=0, sticky="e", padx=5, pady=5)
         self.submitfile_var = tk.StringVar()
-        submit_entry = tk.Entry(files, textvariable=self.submitfile_var, width=60, font=("Arial", 13))
+        submit_entry = tk.Entry(files, textvariable=self.submitfile_var, width=60, font=("Arial", 10))
         submit_entry.grid(row=2, column=1, padx=5, pady=5)
         create_tooltip(submit_entry, "SLURM batch script filename (will be created in output folder)")
-        tk.Button(files, text="Save As...", command=self.save_submitfile, font=("Arial", 13)).grid(
+        tk.Button(files, text="Save As...", command=self.save_submitfile, font=("Arial", 10)).grid(
             row=2, column=2, padx=5, pady=5
         )
 
@@ -518,14 +551,14 @@ class PipelineGUI(tk.Tk):
         
         generate_btn = tk.Button(generate_frame, text="Generate Optimized Pipeline Files", 
                  command=self.generate_files, bg="#52c77a", fg="black", 
-                 font=("Arial", 16, "bold"), padx=30, pady=12,
+                 font=("Arial", 13, "bold"), padx=30, pady=12,
                  relief='raised', borderwidth=2, cursor='hand2')
         generate_btn.pack(side=tk.LEFT, padx=10)
         create_tooltip(generate_btn, "Generate the main Python script and SLURM submission script based on your configuration")
         
         benchmark_btn = tk.Button(generate_frame, text="Benchmark Performance", 
                  command=self.generate_benchmark, bg="#5dade3", fg="black",
-                 font=("Arial", 14), padx=25, pady=10,
+                 font=("Arial", 11), padx=25, pady=10,
                  relief='raised', borderwidth=2, cursor='hand2')
         benchmark_btn.pack(side=tk.LEFT, padx=10)
         create_tooltip(benchmark_btn, "Generate test scripts to measure performance improvements and validate functionality")
@@ -545,6 +578,19 @@ class PipelineGUI(tk.Tk):
                 self.canvas.yview_scroll(-1, "units")
             elif event.num == 5:
                 self.canvas.yview_scroll(1, "units")
+
+    def _on_horizontal_mousewheel(self, event):
+        """Handle horizontal mouse wheel scrolling (Shift + wheel)."""
+        # Cross-platform horizontal mouse wheel handling
+        if event.delta:
+            # Windows
+            self.canvas.xview_scroll(int(-1*(event.delta/120)), "units")
+        else:
+            # Linux
+            if event.num == 4:
+                self.canvas.xview_scroll(-1, "units")
+            elif event.num == 5:
+                self.canvas.xview_scroll(1, "units")
 
 
     def toggle_frame(self, frame, skip):
@@ -632,15 +678,12 @@ class PipelineGUI(tk.Tk):
             "baseDir": self.baseDir_var.get(),
             "num_dcd": self.num_dcd_var.get(),
             "max_workers": self.max_workers_var.get(),
-            "skip1": self.skip1.get(),
             "coords": [v.get() for v in self.coords_vars],
             "coords_parallel": self.coords_parallel.get(),
-            "skip2": self.skip2.get(),
             "unwrap": [v.get() for v in self.unwrap_vars],
             "unwrap_opt": [v.get() for v in self.unwrap_opt],
             "unwrap_chunk": self.unwrap_chunk_var.get(),
             "unwrap_parallel": self.unwrap_parallel.get(),
-            "skip3": self.skip3.get(),
             "com": [v.get() for v in self.com_vars],
             "com_parallel": self.com_parallel.get(),
             "com_memmap": self.com_memmap.get(),
@@ -670,14 +713,10 @@ class PipelineGUI(tk.Tk):
         self.num_dcd_var.set(data.get("num_dcd",1))
         self.max_workers_var.set(data.get("max_workers", min(4, mp.cpu_count())))
 
-        if data.get("skip1",False):
-            self.skip1.set(True)
         for v,val in zip(self.coords_vars, data.get("coords",[])):
             v.set(val)
         self.coords_parallel.set(data.get("coords_parallel", True))
 
-        if data.get("skip2",False):
-            self.skip2.set(True)
         for v,val in zip(self.unwrap_vars, data.get("unwrap",[])):
             v.set(val)
         for v,val in zip(self.unwrap_opt, data.get("unwrap_opt",[])):
@@ -685,8 +724,6 @@ class PipelineGUI(tk.Tk):
         self.unwrap_chunk_var.set(data.get("unwrap_chunk", "auto"))
         self.unwrap_parallel.set(data.get("unwrap_parallel", True))
 
-        if data.get("skip3",False):
-            self.skip3.set(True)
         for v,val in zip(self.com_vars, data.get("com",[])):
             v.set(val)
         self.com_parallel.set(data.get("com_parallel", True))
@@ -706,13 +743,7 @@ class PipelineGUI(tk.Tk):
         self.mainfile_var.set(data.get("mainfile",""))
         self.submitfile_var.set(data.get("submitfile",""))
 
-        # re-apply skips
-        try:
-            self.toggle_frame(self.children["!frame"].children["!labelframe"], self.skip1.get())
-            self.toggle_frame(self.children["!frame"].children["!labelframe2"], self.skip2.get())
-            self.toggle_frame(self.children["!frame"].children["!labelframe3"], self.skip3.get())
-        except:
-            pass  # Handle case where widgets don't exist yet
+        # Note: Skip checkboxes are NOT loaded from config as requested
 
     def generate_benchmark(self):
         """Generate a benchmark script to test performance improvements."""
