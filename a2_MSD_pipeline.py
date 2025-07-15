@@ -1043,7 +1043,7 @@ if __name__ == "__main__":
                     "        all_results['alpha2_MSD'] = results_alpha2",
                     "        if results_alpha2['success'] > 0:",
                     "            print(f'✓ α₂(t) and MSD calculation completed using {results_alpha2[\"success\"]} trajectory files')",
-                    "            print(f'  Data quality: {results_alpha2.get(\"data_quality\", {})}')",
+                    "            print(f'  Data quality: {results_alpha2.get(\"data_quality\", \"N/A\")}')",
                     "        else:",
                     "            print('✗ α₂(t) and MSD calculation failed')",
                     "    except Exception as e:",
@@ -1070,7 +1070,7 @@ if __name__ == "__main__":
                     "        all_results['alpha_xz'] = results_alpha_xz",
                     "        if results_alpha_xz['success'] > 0:",
                     "            print(f'✓ α_xz(t) calculation completed using {results_alpha_xz[\"success\"]} trajectory files')",
-                    "            print(f'  Data quality: {results_alpha_xz.get(\"data_quality\", {})}')",
+                    "            print(f'  Data quality: {results_alpha_xz.get(\"data_quality\", \"N/A\")}')",
                     "        else:",
                     "            print('✗ α_xz(t) calculation failed')",
                     "    except Exception as e:",
@@ -1088,7 +1088,7 @@ if __name__ == "__main__":
                 "    for step, results in all_results.items():",
                 "        if 'total_time' in results:",
                 "            print(f'{step:20s}: {results[\"total_time\"]:.2f}s')",
-                "    print(f'{'Total time':20s}: {total_time:.2f}s')",
+                "    print(f'{\"Total time\":20s}: {total_time:.2f}s')",
                 "    print('='*60)",
                 "    print('Pipeline completed successfully!')",
                 "",
@@ -1139,10 +1139,10 @@ if __name__ == "__main__":
                 f.write("########################################################\n")
                 f.write("# Optimized MD Analysis Pipeline Execution\n")
                 f.write("########################################################\n\n")
-                f.write(f"echo 'Starting optimized pipeline with {max_workers} workers...'\\n")
-                f.write("echo 'Job started at:' $(date)\\n")
-                f.write(f"python {main_fn}\\n")
-                f.write("echo 'Job completed at:' $(date)\\n")
+                f.write(f"echo 'Starting optimized pipeline with {max_workers} workers...'\n")
+                f.write("echo 'Job started at:' $(date)\n")
+                f.write(f"python {main_fn}\n")
+                f.write("echo 'Job completed at:' $(date)\n")
 
             # --- Save & notify ---
             self.save_config()
