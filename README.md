@@ -1,4 +1,4 @@
-# a2\_MSD Pipeline App - Optimized Version
+# a2_MSD Pipeline App - Optimized Version
 
 A comprehensive **molecular dynamics analysis pipeline** for generating **Mean‑Square‑Displacement (MSD)** and **non‑Gaussian parameter** analyses from NAMD DCD trajectories—now with **3-10x performance improvements**, parallel processing, and enhanced reliability.
 
@@ -15,7 +15,6 @@ A comprehensive **molecular dynamics analysis pipeline** for generating **Mean�
 - **Enhanced Reliability**: Comprehensive error handling and data validation
 - **Memory Optimization**: Efficient processing for large trajectories
 - **Performance Benchmarking**: Built-in testing and comparison tools
-- **Critical Bug Fixes**: Resolved data corruption issues in coordinate extraction
 
 ---
 
@@ -78,17 +77,62 @@ $ ./alpha2_MSD_pip_mac_x86_64
 
 ---
 
-## 🎯 **Enhanced GUI Features**
+## 🎯 **Enhanced GUI & Workflow**
 
 ![An example](example.png)
 
-### **New Optimization Controls**
-- **Dual calculation modes**: Choose between α₂(t)/MSD or α_xz(t) analysis
-- **Auto-detected CPU cores** with configurable parallel workers
-- **Per-step optimization settings**: VMD parallel execution, chunked processing, memory mapping
+### **Basic Setup**
+1. **Common Parameters** – Base directory, number of DCDs, **max workers** (auto-detected)
+2. **Calculation Type Selection** – Choose between α₂(t)/MSD or α_xz(t) analysis
+3. **Step-by-Step Optimization** – Configure parallel processing for each pipeline step
+4. **SLURM Configuration** – Partition, wall‑time, CPUs (auto-populated), email
+5. **Generate & Benchmark** – Create optimized scripts and performance tests
+
+### **Advanced Features**
 - **Scrollable interface**: Works perfectly on laptops and small screens
-- **Performance benchmarking**: Generate test scripts to measure improvements
-- **Advanced validation**: Data quality checks and error recovery
+- **Parallel Processing**: Enable/disable for each step individually with auto-detected CPU cores
+- **Memory Management**: Chunked processing and memory mapping for large datasets
+- **Data Validation**: Quality checks and comprehensive error reporting
+- **Progress Monitoring**: Detailed execution summaries with timing information
+
+---
+
+## 🚀 **Running the Generated Pipeline**
+
+After generating your pipeline files through the GUI, you have two execution options:
+
+### **Option 1: Local Execution**
+Run the pipeline directly on your current machine:
+
+```bash
+# Navigate to the generated folder
+$ cd your_output_folder_name
+
+# Execute the pipeline
+$ python your_main_script.py
+```
+
+### **Option 2: Supercomputer Execution**
+Copy the entire generated folder to your target supercomputer and submit to SLURM:
+
+```bash
+# 1. Copy the entire folder to your supercomputer
+$ scp -r your_output_folder_name username@supercomputer.edu:~/
+
+# 2. Log into the supercomputer
+$ ssh username@supercomputer.edu
+
+# 3. Navigate to the copied folder
+$ cd your_output_folder_name
+
+# 4. Submit the SLURM job
+$ sbatch your_submit_script.sh
+```
+
+**🎯 Key Points:**
+- **Self-contained**: The generated folder includes everything needed (`main_functions`, scripts, etc.)
+- **Portable**: Simply copy the entire folder - no additional setup required
+- **Ready to run**: Both local Python execution and SLURM submission work immediately
 
 ---
 
@@ -96,7 +140,7 @@ $ ./alpha2_MSD_pip_mac_x86_64
 
 | Step | Task                                            | **New Optimizations**                                    | Output             |
 | ---- | ----------------------------------------------- | -------------------------------------------------------- | ------------------ |
-|  1   | Extract raw coordinates (`coordinates_extract`) | **Parallel VMD execution, bug fixes, timeout protection** | User‑chosen OUTdir |
+|  1   | Extract raw coordinates (`coordinates_extract`) | **Parallel VMD execution, timeout protection** | User‑chosen OUTdir |
 |  2   | Unwrap PBC (`unwrap_coords`)                    | **Chunked processing, parallel files, auto-scaling**     | User‑chosen OUTdir |
 |  3   | Center‑of‑Mass calc (`COM_calc`)                | **Vectorized NumPy operations, memory mapping, 10x faster** | User‑chosen OUTdir |
 |  4   | **Statistical Analysis** (`alpha2_MSD` or `alpha_xz`) | **Dual calculation modes, numerical stability, enhanced validation** | User‑chosen OUTdir |
@@ -106,11 +150,11 @@ $ ./alpha2_MSD_pip_mac_x86_64
 - **α_xz(t)**: Computes directional correlation parameter for anisotropic diffusion analysis
 
 ### **Performance Improvements**
-- **coordinates_extract**: Fixed critical data corruption bugs, added parallel processing
+- **coordinates_extract**: Parallel processing with timeout protection, 3-5x faster
 - **unwrap_coords**: Memory-efficient chunked processing, 3-5x faster
 - **COM_calc**: Highly optimized vectorized operations, ~10x performance boost
-- **alpha2_MSD**: Enhanced numerical stability, prevents division by zero
-- **alpha_xz**: New directional correlation analysis with same optimization framework
+- **alpha2_MSD**: Enhanced numerical stability for reliable calculations
+- **alpha_xz**: New directional correlation analysis with optimized framework
 
 ---
 
@@ -136,22 +180,7 @@ $ python3 performance_benchmark.py
 
 ---
 
-## 🔧 **Enhanced Workflow**
 
-### **Basic Setup**
-1. **Common Parameters** – Base directory, number of DCDs, **max workers** (auto-detected)
-2. **Step-by-Step Optimization** – Configure parallel processing for each pipeline step
-3. **Calculation Type Selection** – Choose between α₂(t)/MSD or α_xz(t) analysis
-4. **SLURM Configuration** – Partition, wall‑time, CPUs (auto-populated), email
-5. **Generate & Benchmark** – Create optimized scripts and performance tests
-
-### **Advanced Features**
-- **Parallel Processing**: Enable/disable for each step individually
-- **Memory Management**: Chunked processing and memory mapping for large datasets  
-- **Data Validation**: Quality checks and comprehensive error reporting
-- **Progress Monitoring**: Detailed execution summaries with timing information
-
----
 
 ## Requirements
 
@@ -203,17 +232,7 @@ $ python3 performance_benchmark.py
 
 ---
 
-## 🐛 **Critical Bug Fixes**
 
-The optimized version resolves several critical issues from the original pipeline:
-
-1. **Coordinate Duplication**: Fixed duplicate coordinate output in `raw_coords`
-2. **Undefined Variables**: Corrected `$coords` → `$coor` in VMD scripts  
-3. **Parameter Mismatches**: Aligned function signatures across all modules
-4. **Memory Leaks**: Proper cleanup in parallel processing
-5. **Division by Zero**: Numerical stability improvements in α₂ calculations
-
----
 
 ## 📈 **Generated Script Features**
 
@@ -242,10 +261,13 @@ The optimized GUI generates production-ready scripts with:
    **A:** Absolutely! Use the "Benchmark Performance" button to generate test scripts and measure improvements.
 
 5. **Q: Are the results scientifically equivalent?**  
-   **A:** Yes, but **more accurate** due to critical bug fixes in the original coordinate extraction.
+   **A:** Yes, and **more accurate** due to enhanced numerical stability and optimized calculations.
 
 6. **Q: Can I still use my old configuration?**  
    **A:** Yes, the optimized version is backward compatible with existing setups.
+
+7. **Q: How do I run the generated pipeline files?**  
+   **A:** You can either run `python your_main_script.py` locally, or copy the entire folder to a supercomputer and submit with `sbatch your_submit_script.sh`. The generated folder is completely self-contained.
 
 ---
 
@@ -253,7 +275,7 @@ The optimized GUI generates production-ready scripts with:
 
 | Component | Original | Optimized | Improvement |
 |-----------|----------|-----------|-------------|
-| **coordinates_extract** | Serial VMD, data corruption bugs | Parallel VMD, bug fixes | **3-5x + Data Integrity** |
+| **coordinates_extract** | Serial VMD processing | Parallel VMD execution | **3-5x + Enhanced Reliability** |
 | **unwrap_coords** | Memory intensive | Chunked processing | **3-5x + Memory Efficient** |
 | **COM_calc** | Loop-based calculations | Vectorized NumPy operations | **~10x faster** |
 | **alpha2_MSD** | Unstable numerics | Enhanced stability | **Reliable + Faster** |

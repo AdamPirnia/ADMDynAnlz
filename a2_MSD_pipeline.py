@@ -480,6 +480,8 @@ class PipelineGUI(tk.Tk):
         
         tk.Label(files, text="Output folder name:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=0, sticky="e", padx=5, pady=5)
         self.output_folder_var = tk.StringVar(value="pipeline_run")
+        # Add callback to clear browse path when user manually types folder name
+        self.output_folder_var.trace('w', self.on_folder_name_changed)
         folder_entry = tk.Entry(files, textvariable=self.output_folder_var, width=60, font=("Arial", 13))
         folder_entry.grid(row=0, column=1, padx=5, pady=5)
         create_tooltip(folder_entry, "Name of the folder to contain all generated files and main_functions. Use the Browse button to select a specific location, or it will be created in the current directory. This self-contained folder can be uploaded directly to your target computer without additional setup.")
@@ -593,6 +595,21 @@ class PipelineGUI(tk.Tk):
         
         if hasattr(self, 'output_path_label'):
             self.output_path_label.config(text=path_text)
+    
+    def on_folder_name_changed(self, *args):
+        """Clear the browse path when user manually types a folder name."""
+        # If the current folder name doesn't match the browse path basename, clear the browse path
+        if hasattr(self, 'output_full_path') and self.output_full_path:
+            current_folder = self.output_folder_var.get().strip()
+            browse_folder = os.path.basename(self.output_full_path)
+            if current_folder != browse_folder:
+                self.output_full_path = None
+                self.update_output_path_label()
+
+    def reset_output_path(self):
+        """Reset the output path state (useful after testing or to clear stale paths)."""
+        self.output_full_path = None
+        self.update_output_path_label()
 
     def save_mainfile(self):
         path = filedialog.asksaveasfilename(
@@ -710,8 +727,9 @@ class PipelineGUI(tk.Tk):
             if not output_folder:
                 raise ValueError("Output folder name is required")
             
-            # Use the full path if set by browse, otherwise use current directory
-            if hasattr(self, 'output_full_path') and self.output_full_path:
+            # Use the full path if set by browse AND the folder name matches, otherwise use current directory
+            if (hasattr(self, 'output_full_path') and self.output_full_path and 
+                os.path.basename(self.output_full_path) == output_folder):
                 output_path = self.output_full_path
             else:
                 # Create folder in current directory
@@ -842,8 +860,9 @@ if __name__ == "__main__":
             if not output_folder:
                 raise ValueError("Output folder name is required")
             
-            # Use the full path if set by browse, otherwise use current directory
-            if hasattr(self, 'output_full_path') and self.output_full_path:
+            # Use the full path if set by browse AND the folder name matches, otherwise use current directory
+            if (hasattr(self, 'output_full_path') and self.output_full_path and 
+                os.path.basename(self.output_full_path) == output_folder):
                 output_path = self.output_full_path
             else:
                 # Create folder in current directory
