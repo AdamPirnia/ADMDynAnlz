@@ -112,11 +112,14 @@ class PipelineGUI(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("MD Analysis Pipeline GUI - Optimized Version")
-        self.geometry("1100x1400")  # Significantly increased resolution
+        self.geometry("1200x1400")  # Significantly increased resolution
         self.configure(bg='#f0f0f0')  # Light gray background for modern look
         
         # Configure ttk styling for better appearance
         self.style = configure_ttk_style()
+        
+        # Initialize output path variable
+        self.output_full_path = None
 
         # Create main frame and scrollbar
         self.main_frame = tk.Frame(self, bg='#f0f0f0')
@@ -479,10 +482,15 @@ class PipelineGUI(tk.Tk):
         self.output_folder_var = tk.StringVar(value="pipeline_run")
         folder_entry = tk.Entry(files, textvariable=self.output_folder_var, width=60, font=("Arial", 13))
         folder_entry.grid(row=0, column=1, padx=5, pady=5)
-        create_tooltip(folder_entry, "Name of the folder to contain all generated files and main_functions. This self-contained folder can be uploaded directly to your target computer without additional setup.")
+        create_tooltip(folder_entry, "Name of the folder to contain all generated files and main_functions. Use the Browse button to select a specific location, or it will be created in the current directory. This self-contained folder can be uploaded directly to your target computer without additional setup.")
         tk.Button(files, text="Browse...", command=self.browse_output_folder, font=("Arial", 13)).grid(
             row=0, column=2, padx=5, pady=5
         )
+        
+        # Show current output path
+        self.output_path_label = tk.Label(files, text="", font=("Arial", 10), bg='#f0f0f0', fg='#7f8c8d', wraplength=600)
+        self.output_path_label.grid(row=0, column=3, columnspan=2, sticky="w", padx=5)
+        self.update_output_path_label()
         
         tk.Label(files, text="Main script file:*", font=("Arial", 13), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=0, sticky="e", padx=5, pady=5)
         self.mainfile_var = tk.StringVar()
@@ -552,6 +560,7 @@ class PipelineGUI(tk.Tk):
         d = filedialog.askdirectory()
         if d:
             self.baseDir_var.set(d)
+            self.update_output_path_label()
 
     def browse_vmd(self):
         f = filedialog.askopenfilename(filetypes=[("Executable","*"), ("All files", "*")])
@@ -567,8 +576,23 @@ class PipelineGUI(tk.Tk):
     def browse_output_folder(self):
         d = filedialog.askdirectory()
         if d:
+            # Store the full path in a new variable
+            self.output_full_path = d
+            # Still show just the folder name in the UI
             folder_name = os.path.basename(d)
             self.output_folder_var.set(folder_name)
+            self.update_output_path_label()
+    
+    def update_output_path_label(self):
+        """Update the label showing the current output path."""
+        if hasattr(self, 'output_full_path') and self.output_full_path:
+            path_text = f"Output location: {self.output_full_path}"
+        else:
+            current_dir = os.getcwd()
+            path_text = f"Output location: {current_dir}/<folder_name>"
+        
+        if hasattr(self, 'output_path_label'):
+            self.output_path_label.config(text=path_text)
 
     def save_mainfile(self):
         path = filedialog.asksaveasfilename(
@@ -609,6 +633,7 @@ class PipelineGUI(tk.Tk):
             "a2_validate": self.a2_validate.get(),
             "sbatch": [v.get() for v in self.sbatch_vars],
             "output_folder": self.output_folder_var.get(),
+            "output_full_path": getattr(self, 'output_full_path', None),
             "mainfile": self.mainfile_var.get(),
             "submitfile": self.submitfile_var.get()
         }
@@ -660,6 +685,7 @@ class PipelineGUI(tk.Tk):
             v.set(val)
 
         self.output_folder_var.set(data.get("output_folder", "pipeline_run"))
+        self.output_full_path = data.get("output_full_path", None)
         self.mainfile_var.set(data.get("mainfile",""))
         self.submitfile_var.set(data.get("submitfile",""))
 
@@ -674,16 +700,24 @@ class PipelineGUI(tk.Tk):
     def generate_benchmark(self):
         """Generate a benchmark script to test performance improvements."""
         try:
+            # Base directory is only used for the benchmark parameters, not for output folder creation
             bd = self.baseDir_var.get().strip()
             if not bd:
-                raise ValueError("Base Directory is required for benchmarking")
+                bd = os.getcwd()  # Use current directory if no base directory specified
             
             # Create output folder
             output_folder = self.output_folder_var.get().strip()
             if not output_folder:
                 raise ValueError("Output folder name is required")
             
-            output_path = os.path.join(bd, output_folder)
+            # Use the full path if set by browse, otherwise use current directory
+            if hasattr(self, 'output_full_path') and self.output_full_path:
+                output_path = self.output_full_path
+            else:
+                # Create folder in current directory
+                output_path = os.path.join(os.getcwd(), output_folder)
+            
+            # Create the output directory
             os.makedirs(output_path, exist_ok=True)
             
             # Copy main_functions folder to output directory if it doesn't exist
@@ -782,7 +816,14 @@ if __name__ == "__main__":
             if not output_folder:
                 raise ValueError("Output folder name is required")
             
-            output_path = os.path.join(bd, output_folder)
+            # Use the full path if set by browse, otherwise use current directory
+            if hasattr(self, 'output_full_path') and self.output_full_path:
+                output_path = self.output_full_path
+            else:
+                # Create folder in current directory
+                output_path = os.path.join(os.getcwd(), output_folder)
+            
+            # Create the output directory
             os.makedirs(output_path, exist_ok=True)
             
             # Copy main_functions folder to output directory if it doesn't exist
