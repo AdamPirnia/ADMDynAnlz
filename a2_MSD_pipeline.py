@@ -55,6 +55,7 @@ import os
 import json
 import multiprocessing as mp
 import shutil
+import sys
 
 # Configure ttk style for better appearance
 def configure_ttk_style():
@@ -1406,13 +1407,13 @@ that provide 3-10x performance improvements over the original versions."""
             messagebox.showerror("Error", f"Failed to generate files:\n{e}")
 
     def load_application_icon(self):
-        """Load the application icon if available.
+        """Load the application icon with Ubuntu/built-app compatibility.
         
-        Tries multiple icon formats and locations with Linux-specific handling:
-        1. icon.ico (Windows format) - works well on Linux too
-        2. icon.png (cross-platform)
-        3. icon.gif (Tkinter native support)
-        4. Creates a simple default icon if none found
+        Comprehensive approach for Ubuntu taskbar icon visibility:
+        1. System icon installation for built apps
+        2. Multiple icon setting methods simultaneously  
+        3. Desktop file creation for proper integration
+        4. Fallback methods for different Ubuntu configurations
         """
         # Get the directory where the script is located
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1431,6 +1432,9 @@ that provide 3-10x performance improvements over the original versions."""
         ]
         
         icon_loaded = False
+        
+        # First, try to install icon to system locations for built apps
+        self.install_system_icon(script_dir)
         
         for icon_file in icon_files:
             icon_path = os.path.join(script_dir, icon_file)
@@ -1516,22 +1520,56 @@ that provide 3-10x performance improvements over the original versions."""
                                 test_window.iconphoto(True, photo)  # type: ignore
                                 test_window.destroy()  # Clean up test window
                                 
-                                # If test succeeded, apply to main window with Unity-specific methods
-                                self.iconphoto(True, photo)  # type: ignore
+                                # Apply multiple icon methods simultaneously for maximum compatibility
+                                success_methods = []
                                 
-                                # Unity-specific icon setting methods
+                                # Method 1: Standard iconphoto
                                 try:
-                                    # Try multiple sizes for Unity compatibility
+                                    self.iconphoto(True, photo)  # type: ignore
+                                    success_methods.append("iconphoto")
+                                except:
+                                    pass
+                                
+                                # Method 2: Multiple sizes for different Ubuntu configurations
+                                try:
                                     sizes = [16, 22, 24, 32, 48, 64]
                                     for size in sizes:
                                         sized_img = image.resize((size, size), Image.Resampling.LANCZOS)
                                         sized_photo = ImageTk.PhotoImage(sized_img)
                                         self.iconphoto(True, sized_photo)  # type: ignore
+                                    success_methods.append("multi-size")
+                                except:
+                                    pass
+                                
+                                # Method 3: Try iconbitmap with converted icon for built apps
+                                try:
+                                    import tempfile
+                                    temp_ico = tempfile.NamedTemporaryFile(suffix='.ico', delete=False)
+                                    temp_ico.close()
+                                    
+                                    # Convert to simple ICO for system compatibility
+                                    ico_image = image.resize((32, 32), Image.Resampling.LANCZOS)
+                                    if ico_image.mode != 'RGB':
+                                        ico_image = ico_image.convert('RGB')
+                                    ico_image.save(temp_ico.name, 'ICO')
+                                    
+                                    self.iconbitmap(temp_ico.name)
+                                    os.unlink(temp_ico.name)
+                                    success_methods.append("iconbitmap")
+                                except:
+                                    pass
+                                
+                                # Method 4: System integration method
+                                try:
+                                    # This relies on the system icon we installed
+                                    self.wm_iconname("md-analysis-pipeline")  # type: ignore
+                                    success_methods.append("system-icon")
                                 except:
                                     pass
                                 
                                 self._icon_photo = photo
-                                print(f"✓ Loaded icon with PIL (Unity-optimized): {icon_file}")
+                                methods_str = "+".join(success_methods) if success_methods else "fallback"
+                                print(f"✓ Icon loaded ({methods_str}): {icon_file}")
                                 icon_loaded = True
                                 break
                                 
@@ -1593,13 +1631,15 @@ that provide 3-10x performance improvements over the original versions."""
         # Additional Linux compatibility measures
         self.setup_linux_window_properties()
         
-        # Unity-specific feedback
+        # Ubuntu/Linux desktop feedback
         if not icon_loaded:
-            print("Note: Icon loading failed. For Unity desktop, you may need to:")
-            print("1. Right-click the taskbar icon and 'Keep in Launcher'")
-            print("2. Or run: sudo apt-get install python3-pil python3-tk")
+            print("Note: Icon loading failed. For Ubuntu desktop, try:")
+            print("1. sudo apt-get install python3-pil python3-tk")
+            print("2. Right-click taskbar icon → 'Keep in Launcher'")
+            print("3. Check ~/.local/share/applications/ for desktop file")
         else:
-            print("Unity tip: Right-click taskbar icon → 'Keep in Launcher' for permanent shortcut")
+            print("📌 Ubuntu tip: Right-click taskbar icon → 'Keep in Launcher' for permanent access")
+            print("📁 Desktop file installed for system integration")
     
     def setup_linux_window_properties(self):
         """Set up Unity/Ubuntu-specific window properties for taskbar integration."""
@@ -1693,6 +1733,108 @@ StartupWMClass=MD-Analysis-Pipeline
         
         # Close the application
         self.destroy()
+    
+    def install_system_icon(self, script_dir):
+        """Install icon to system locations for Ubuntu taskbar recognition."""
+        try:
+            icon_installed = False
+            
+            # Find the best icon file
+            for icon_name in ["icon.png", "icon.ico"]:
+                icon_path = os.path.join(script_dir, icon_name)
+                if os.path.exists(icon_path):
+                    
+                    # Install to user's local icon directory
+                    try:
+                        local_icons_dir = os.path.expanduser("~/.local/share/icons/hicolor")
+                        sizes = ["16x16", "22x22", "24x24", "32x32", "48x48", "64x64", "128x128"]
+                        
+                        from PIL import Image
+                        original_image = Image.open(icon_path)
+                        
+                        for size_str in sizes:
+                            size = int(size_str.split('x')[0])
+                            size_dir = os.path.join(local_icons_dir, size_str, "apps")
+                            os.makedirs(size_dir, exist_ok=True)
+                            
+                            # Create resized icon
+                            resized = original_image.resize((size, size), Image.Resampling.LANCZOS)
+                            icon_dest = os.path.join(size_dir, "md-analysis-pipeline.png")
+                            resized.save(icon_dest, "PNG")
+                        
+                        # Update icon cache
+                        try:
+                            import subprocess
+                            subprocess.run(["gtk-update-icon-cache", local_icons_dir], 
+                                         capture_output=True, timeout=5)
+                        except:
+                            pass
+                        
+                        print(f"✓ System icon installed from {icon_name}")
+                        icon_installed = True
+                        break
+                        
+                    except Exception as install_err:
+                        print(f"Icon installation failed: {install_err}")
+                        continue
+            
+            # Create persistent desktop file
+            if icon_installed:
+                self.create_persistent_desktop_file(script_dir)
+                
+        except Exception as e:
+            # If system installation fails, continue with normal icon loading
+            pass
+    
+    def create_persistent_desktop_file(self, script_dir):
+        """Create a persistent .desktop file for proper Ubuntu integration."""
+        try:
+            desktop_dir = os.path.expanduser("~/.local/share/applications")
+            os.makedirs(desktop_dir, exist_ok=True)
+            
+            desktop_file = os.path.join(desktop_dir, "md-analysis-pipeline.desktop")
+            
+            # Determine the executable path (script or built app)
+            if getattr(sys, 'frozen', False):
+                # Built application
+                exec_path = sys.executable
+            else:
+                # Python script
+                exec_path = f"python3 {os.path.abspath(__file__)}"
+            
+            desktop_content = f"""[Desktop Entry]
+Version=1.0
+Type=Application
+Name=MD Analysis Pipeline
+Comment=Molecular Dynamics Analysis Pipeline
+Exec={exec_path}
+Icon=md-analysis-pipeline
+Terminal=false
+Categories=Science;Education;
+StartupWMClass=MD-Analysis-Pipeline
+MimeType=application/x-md-analysis;
+Keywords=molecular;dynamics;analysis;MSD;science;
+"""
+            
+            with open(desktop_file, 'w') as f:
+                f.write(desktop_content)
+            
+            # Make executable
+            os.chmod(desktop_file, 0o755)
+            
+            # Update desktop database
+            try:
+                import subprocess
+                subprocess.run(["update-desktop-database", desktop_dir], 
+                             capture_output=True, timeout=5)
+            except:
+                pass
+                
+            print(f"✓ Desktop file created: {desktop_file}")
+            
+        except Exception as e:
+            # If desktop file creation fails, continue
+            pass
     
     def create_default_icon(self):
         """Create a simple default icon using Tkinter with multiple sizes for better compatibility."""
