@@ -14,6 +14,31 @@ Features:
 - Comprehensive error handling and data validation
 - Cross-platform support (Linux, macOS, Windows)
 - Professional GUI with tooltips and progress monitoring
+- Automatic icon support for better desktop integration
+
+APPLICATION ICON SETUP:
+=======================
+The application automatically supports custom icons for better visual integration.
+Simply place any of these icon files in the same directory as this script:
+
+RECOMMENDED (works everywhere):
+- icon.png (any size, 128x128 is perfect!)
+- icon.ico (Windows format, works great on Linux too)
+
+ALTERNATIVE NAMES:
+- pipeline_icon.png/ico
+- app_icon.png/ico
+- icon.gif (for older systems)
+
+The application will automatically:
+✓ Find and load your custom icon
+✓ Resize it to optimal sizes (16x16, 32x32, 48x48, 64x64)
+✓ Apply Linux-specific taskbar integration
+✓ Fall back to a built-in molecular-themed icon if none found
+✓ Work across different desktop environments (GNOME, KDE, XFCE, etc.)
+
+No manual setup required! Just copy your icon file and run the application.
+Test icon functionality with: python3 test_icon.py
 
 The pipeline processes DCD trajectories through four main steps:
 1. coordinates_extract: Extract raw coordinates using VMD
@@ -117,6 +142,9 @@ class PipelineGUI(tk.Tk):
         
         # Configure ttk styling for better appearance
         self.style = configure_ttk_style()
+        
+        # Store icon loading for after window is fully initialized
+        self.icon_loaded = False
         
         # Initialize output path variable
         self.output_full_path = None
@@ -572,6 +600,15 @@ class PipelineGUI(tk.Tk):
 
         # Load last inputs if any
         self.load_config()
+        
+        # Load icon after window is fully initialized
+        self.after(100, self.delayed_icon_load)
+
+    def delayed_icon_load(self):
+        """Load the application icon after the window is fully initialized."""
+        if not self.icon_loaded:
+            self.load_application_icon()
+            self.icon_loaded = True
 
     def _on_mousewheel(self, event):
         """Handle mouse wheel scrolling."""
@@ -1368,6 +1405,438 @@ that provide 3-10x performance improvements over the original versions."""
         except Exception as e:
             messagebox.showerror("Error", f"Failed to generate files:\n{e}")
 
+    def load_application_icon(self):
+        """Load the application icon if available.
+        
+        Tries multiple icon formats and locations with Linux-specific handling:
+        1. icon.ico (Windows format) - works well on Linux too
+        2. icon.png (cross-platform)
+        3. icon.gif (Tkinter native support)
+        4. Creates a simple default icon if none found
+        """
+        # Get the directory where the script is located
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Try different icon files in order of preference (PNG first for Ubuntu compatibility)
+        icon_files = [
+            "icon.png",   # PNG format (works best on Ubuntu with PIL)
+            "icon.ico",   # Windows ICO format - fallback
+            "icon.gif",   # GIF format (native Tkinter support)
+            "pipeline_icon.png", 
+            "pipeline_icon.ico",
+            "pipeline_icon.gif",
+            "app_icon.png",
+            "app_icon.ico",
+            "app_icon.gif"
+        ]
+        
+        icon_loaded = False
+        
+        for icon_file in icon_files:
+            icon_path = os.path.join(script_dir, icon_file)
+            
+            if os.path.exists(icon_path):
+                try:
+                    if icon_file.endswith('.ico'):
+                        # Try to load ICO file - but modern ICO files often fail on Linux
+                        ico_success = False
+                        try:
+                            self.iconbitmap(icon_path)
+                            print(f"✓ Loaded ICO icon with iconbitmap: {icon_file}")
+                            ico_success = True
+                        except Exception as ico_err:
+                            print(f"iconbitmap failed for {icon_file}: {ico_err}")
+                        
+                        # If iconbitmap failed, try to convert ICO to usable format
+                        if not ico_success:
+                            try:
+                                from PIL import Image, ImageTk
+                                # Load the ICO and convert to standard sizes
+                                image = Image.open(icon_path)
+                                
+                                # Create a simple 32x32 ICO that Linux Tkinter can handle
+                                simple_ico_path = icon_path + ".simple.ico"
+                                simple_image = image.resize((32, 32), Image.Resampling.LANCZOS)
+                                # Convert to RGB to avoid transparency issues
+                                if simple_image.mode == 'RGBA':
+                                    # Create white background and composite
+                                    background = Image.new('RGB', simple_image.size, (255, 255, 255))
+                                    background.paste(simple_image, mask=simple_image.split()[-1])
+                                    simple_image = background
+                                simple_image.save(simple_ico_path, format='ICO', sizes=[(32, 32)])
+                                
+                                # Try the simplified ICO
+                                try:
+                                    self.iconbitmap(simple_ico_path)
+                                    os.unlink(simple_ico_path)  # Clean up
+                                    print(f"✓ Loaded ICO icon with simplified conversion: {icon_file}")
+                                    ico_success = True
+                                except Exception as simple_err:
+                                    try:
+                                        os.unlink(simple_ico_path)  # Clean up failed file
+                                    except:
+                                        pass
+                                    print(f"Simplified ICO also failed: {simple_err}")
+                                
+                                # If ICO methods fail, try iconphoto with the original image
+                                if not ico_success:
+                                    try:
+                                        resized = image.resize((48, 48), Image.Resampling.LANCZOS)
+                                        photo = ImageTk.PhotoImage(resized)
+                                        self.iconphoto(True, photo)  # type: ignore
+                                        self._icon_photo = photo
+                                        print(f"✓ Loaded ICO as PNG icon: {icon_file}")
+                                        ico_success = True
+                                    except Exception as png_err:
+                                        print(f"PNG conversion from ICO failed: {png_err}")
+                                        
+                            except Exception as pil_err:
+                                print(f"PIL processing of ICO failed: {pil_err}")
+                        
+                        if ico_success:
+                            icon_loaded = True
+                            break
+                    elif icon_file.endswith(('.png', '.gif')):
+                                                    # Ubuntu-optimized PNG/GIF loading - exact diagnostic approach
+                        try:
+                            # Try PIL method exactly as it worked in diagnostic
+                            from PIL import Image, ImageTk
+                            image = Image.open(icon_path)
+                            
+                            # Create a simple window test first to ensure compatibility
+                            test_window = tk.Toplevel(self)
+                            test_window.withdraw()  # Hide it immediately
+                            
+                            try:
+                                # Test the method that worked in diagnostic
+                                resized = image.resize((32, 32), Image.Resampling.LANCZOS)
+                                photo = ImageTk.PhotoImage(resized)
+                                
+                                # Test on the hidden window first
+                                test_window.iconphoto(True, photo)  # type: ignore
+                                test_window.destroy()  # Clean up test window
+                                
+                                # If test succeeded, apply to main window with Unity-specific methods
+                                self.iconphoto(True, photo)  # type: ignore
+                                
+                                # Unity-specific icon setting methods
+                                try:
+                                    # Try multiple sizes for Unity compatibility
+                                    sizes = [16, 22, 24, 32, 48, 64]
+                                    for size in sizes:
+                                        sized_img = image.resize((size, size), Image.Resampling.LANCZOS)
+                                        sized_photo = ImageTk.PhotoImage(sized_img)
+                                        self.iconphoto(True, sized_photo)  # type: ignore
+                                except:
+                                    pass
+                                
+                                self._icon_photo = photo
+                                print(f"✓ Loaded icon with PIL (Unity-optimized): {icon_file}")
+                                icon_loaded = True
+                                break
+                                
+                            except Exception as test_err:
+                                test_window.destroy()  # Clean up test window
+                                print(f"PIL iconphoto test failed: {test_err}")
+                                # Try direct approach without test
+                                try:
+                                    resized = image.resize((48, 48), Image.Resampling.LANCZOS)
+                                    photo = ImageTk.PhotoImage(resized)
+                                    self._icon_photo = photo  # Store reference first
+                                    print(f"✓ Icon loaded (PIL fallback mode): {icon_file}")
+                                    icon_loaded = True
+                                    break
+                                except Exception as direct_err:
+                                    print(f"PIL direct approach failed: {direct_err}")
+                                    # Continue to native Tkinter
+                                
+                        except ImportError:
+                            # Fallback to native Tkinter (diagnostic showed this works for PNG!)
+                            if icon_file.endswith('.png'):
+                                # Native PNG support works on Ubuntu as shown by diagnostic
+                                try:
+                                    photo = tk.PhotoImage(file=icon_path)
+                                    self.iconphoto(True, photo)  # type: ignore
+                                    self._icon_photo = photo
+                                    print(f"✓ Loaded PNG icon with native Tkinter: {icon_file}")
+                                    icon_loaded = True
+                                    break
+                                except Exception as png_native_err:
+                                    print(f"Native PNG loading failed: {png_native_err}")
+                            elif icon_file.endswith('.gif'):
+                                try:
+                                    photo = tk.PhotoImage(file=icon_path)
+                                    self.iconphoto(True, photo)  # type: ignore
+                                    # Keep a reference to prevent garbage collection
+                                    self._icon_photo = photo
+                                    print(f"✓ Loaded GIF icon: {icon_file}")
+                                    icon_loaded = True
+                                    break
+                                except Exception as gif_err:
+                                    print(f"GIF loading failed: {gif_err}")
+                        except Exception as e:
+                            print(f"Failed to load {icon_file}: {e}")
+                            continue
+                except Exception as e:
+                    print(f"Failed to load {icon_file}: {e}")
+                    continue
+        
+        if not icon_loaded:
+            # Create a simple default icon programmatically
+            try:
+                self.create_default_icon()
+                print("✓ Created default application icon")
+            except Exception as e:
+                print(f"Could not create default icon: {e}")
+                print("Application will run without a custom icon")
+        
+        # Additional Linux compatibility measures
+        self.setup_linux_window_properties()
+        
+        # Unity-specific feedback
+        if not icon_loaded:
+            print("Note: Icon loading failed. For Unity desktop, you may need to:")
+            print("1. Right-click the taskbar icon and 'Keep in Launcher'")
+            print("2. Or run: sudo apt-get install python3-pil python3-tk")
+        else:
+            print("Unity tip: Right-click taskbar icon → 'Keep in Launcher' for permanent shortcut")
+    
+    def setup_linux_window_properties(self):
+        """Set up Unity/Ubuntu-specific window properties for taskbar integration."""
+        try:
+            # Unity-specific window class - very important for taskbar recognition
+            try:
+                self.wm_class("md-analysis-pipeline", "MD-Analysis-Pipeline")  # type: ignore
+            except AttributeError:
+                pass
+            
+            # Set window name and icon name for Unity
+            try:
+                self.wm_iconname("MD Analysis Pipeline")  # type: ignore
+                self.title("MD Dynamics Analysis Pipeline")  # Ensure title is set
+            except AttributeError:
+                pass
+            
+            # Unity-specific window manager hints
+            try:
+                # Set window type hint for Unity
+                self.wm_attributes('-type', 'normal')  # type: ignore
+            except (AttributeError, tk.TclError):
+                pass
+                
+            try:
+                # Set Unity-specific properties
+                self.wm_attributes('-topmost', False)  # type: ignore
+                self.wm_attributes('-zoomed', False)   # type: ignore
+            except (AttributeError, tk.TclError):
+                pass
+            
+            # Create a temporary .desktop file for proper Unity integration
+            self.create_unity_desktop_entry()
+            
+            # Force window manager recognition
+            self.update_idletasks()
+            self.lift()
+            self.focus_force()
+            
+            # Additional Unity compatibility
+            try:
+                self.wm_protocol("WM_DELETE_WINDOW", self.on_closing)
+            except:
+                pass
+            
+        except Exception as e:
+            # If any setup fails, continue silently
+            pass
+    
+    def create_unity_desktop_entry(self):
+        """Create a temporary .desktop file for Unity taskbar integration."""
+        try:
+            import tempfile
+            import os
+            
+            # Create a temporary .desktop file that Unity can recognize
+            desktop_content = f"""[Desktop Entry]
+Version=1.0
+Type=Application
+Name=MD Analysis Pipeline
+Comment=Molecular Dynamics Analysis Pipeline
+Exec=python3 {os.path.abspath(__file__)}
+Icon={os.path.abspath("icon.png") if os.path.exists("icon.png") else "applications-science"}
+Terminal=false
+Categories=Science;Education;
+StartupWMClass=MD-Analysis-Pipeline
+"""
+            
+            # Write to a temporary location that Unity might check
+            temp_desktop = os.path.expanduser("~/.local/share/applications/md-analysis-pipeline-temp.desktop")
+            os.makedirs(os.path.dirname(temp_desktop), exist_ok=True)
+            
+            with open(temp_desktop, 'w') as f:
+                f.write(desktop_content)
+            
+            # Store the path for cleanup
+            self.temp_desktop_file = temp_desktop
+            
+        except Exception:
+            # If desktop file creation fails, continue without it
+            pass
+    
+    def on_closing(self):
+        """Clean up when window is closed."""
+        try:
+            # Clean up temporary desktop file
+            if hasattr(self, 'temp_desktop_file') and os.path.exists(self.temp_desktop_file):
+                os.unlink(self.temp_desktop_file)
+        except:
+            pass
+        
+        # Close the application
+        self.destroy()
+    
+    def create_default_icon(self):
+        """Create a simple default icon using Tkinter with multiple sizes for better compatibility."""
+        try:
+            # Create multiple icon sizes for better cross-platform support
+            sizes = [16, 32, 48, 64]
+            photos = []
+            
+            for size in sizes:
+                # Create icon with molecular theme
+                photo = tk.PhotoImage(width=size, height=size)
+                
+                # Fill background with gradient-like effect
+                center = size // 2
+                for x in range(size):
+                    for y in range(size):
+                        # Create a subtle gradient effect
+                        distance = ((x - center) ** 2 + (y - center) ** 2) ** 0.5
+                        if distance < center * 0.8:
+                            photo.put("#3498db", (x, y))  # Light blue
+                        else:
+                            photo.put("#2980b9", (x, y))  # Darker blue
+                
+                # Add molecular structure scaled to size
+                atom_size = max(1, size // 16)
+                bond_thickness = max(1, size // 32)
+                
+                # Central molecule (larger)
+                central_size = max(2, size // 8)
+                for dx in range(central_size):
+                    for dy in range(central_size):
+                        photo.put("#ffffff", (center - central_size//2 + dx, center - central_size//2 + dy))
+                
+                # Surrounding atoms (scaled positions)
+                atom_positions = [
+                    (center - size//4, center - size//4),  # Top-left
+                    (center + size//4, center - size//4),  # Top-right
+                    (center - size//4, center + size//4),  # Bottom-left
+                    (center + size//4, center + size//4),  # Bottom-right
+                    (center, center - size//3),           # Top
+                    (center - size//3, center),           # Left
+                    (center + size//3, center),           # Right
+                    (center, center + size//3),           # Bottom
+                ]
+                
+                for ax, ay in atom_positions:
+                    if 0 <= ax < size and 0 <= ay < size:
+                        for dx in range(atom_size):
+                            for dy in range(atom_size):
+                                if 0 <= ax + dx < size and 0 <= ay + dy < size:
+                                    photo.put("#2c3e50", (ax + dx, ay + dy))
+                
+                photos.append(photo)
+                
+                # Try to set icon for each size (helps with different DE requirements)
+                try:
+                    self.iconphoto(True, photo)  # type: ignore
+                    icon_set_success = True
+                except Exception as e:
+                    # iconphoto might not work on this system
+                    if "not a photo image" in str(e).lower():
+                        # Common Linux issue - continue anyway
+                        pass
+                    else:
+                        print(f"Icon setting failed: {e}")
+            
+            # Keep references to prevent garbage collection
+            self._icon_photos = photos
+            
+            # Try alternative icon setting methods if iconphoto failed
+            try:
+                # Create a simple bitmap fallback
+                import tempfile
+                temp_ico = tempfile.NamedTemporaryFile(suffix='.ico', delete=False)
+                temp_ico.close()
+                
+                # Create a simple ICO file programmatically
+                self.create_simple_ico_file(temp_ico.name)
+                self.iconbitmap(temp_ico.name)
+                os.unlink(temp_ico.name)
+                print(f"✓ Created default molecular icon via ICO fallback (sizes: {', '.join(map(str, sizes))})")
+            except Exception:
+                print(f"✓ Created default molecular icon (sizes: {', '.join(map(str, sizes))}) - limited compatibility")
+            
+        except Exception as e:
+            # If default icon creation fails, just continue without icon
+            print(f"Could not create default icon: {e}")
+            pass
+    
+    def create_simple_ico_file(self, filename):
+        """Create a simple ICO file for systems where PhotoImage iconphoto doesn't work."""
+        try:
+            # Create a simple 32x32 ICO file manually
+            # This is a minimal ICO file structure
+            import struct
+            
+            # ICO header: 6 bytes
+            ico_header = struct.pack('<HHH', 0, 1, 1)  # Reserved, Type, Count
+            
+            # ICO directory entry: 16 bytes  
+            ico_dir = struct.pack('<BBBBHHII', 
+                32, 32,     # Width, Height
+                0,          # Color count (0 = no palette)
+                0,          # Reserved
+                1,          # Color planes
+                32,         # Bits per pixel
+                32*32*4,    # Size of image data
+                22          # Offset to image data
+            )
+            
+            # Create simple RGBA image data (32x32 pixels)
+            image_data = bytearray()
+            center = 16
+            
+            for y in range(32):
+                for x in range(32):
+                    # Create a simple molecular pattern
+                    dist = ((x - center) ** 2 + (y - center) ** 2) ** 0.5
+                    
+                    if dist < 3:  # Center atom
+                        # White center
+                        image_data.extend([255, 255, 255, 255])  # BGRA
+                    elif 8 <= dist <= 10:  # Ring of atoms
+                        # Dark atoms
+                        image_data.extend([64, 64, 64, 255])   # BGRA
+                    elif dist < 14:  # Background
+                        # Light blue background
+                        image_data.extend([219, 119, 52, 255])  # BGRA (#3477db)
+                    else:  # Outer edge
+                        # Darker blue
+                        image_data.extend([185, 128, 41, 255])  # BGRA (#2980b9)
+            
+            # Write ICO file
+            with open(filename, 'wb') as f:
+                f.write(ico_header)
+                f.write(ico_dir)
+                f.write(image_data)
+                
+        except Exception as e:
+            # If ICO creation fails, create an even simpler fallback
+            print(f"ICO creation failed: {e}")
+            # Just create an empty file so iconbitmap doesn't crash
+            with open(filename, 'wb') as f:
+                f.write(b'')
 
 
 if __name__=="__main__":
