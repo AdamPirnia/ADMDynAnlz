@@ -409,10 +409,25 @@ class PipelineGUI(tk.Tk):
         self.toggle_frame(com, self.skip3.get())
 
         # ----- STEP 4: Alpha2 MSD -----
-        a2 = tk.LabelFrame(steps, text="Step 4: Non-Gaussian Parameter Calculation (Optimized - always runs)",
-                          font=("Arial", 11, "bold"), fg='#2c3e50', bg='#f0f0f0',
-                          relief='groove', borderwidth=1)
-        a2.grid(row=1, column=1, padx=10, pady=10, sticky="nw")
+        self.skip4 = tk.BooleanVar(value=False)
+        alpha_frame = tk.Frame(steps, bg='#f0f0f0')
+        alpha_frame.grid(row=1, column=1, padx=5, pady=5, sticky="nw")
+        
+        # Create title frame with skip checkbox
+        title_frame4 = tk.Frame(alpha_frame, bg='#f0f0f0')
+        title_frame4.pack(fill="x", padx=2, pady=2)
+        
+        tk.Label(title_frame4, text="Step 4: Non-Gaussian Parameter Calculation (Optimized)", 
+                font=("Arial", 11, "bold"), fg='#2c3e50', bg='#f0f0f0').pack(side="left")
+        skip4_check = tk.Checkbutton(title_frame4, text="Skip", variable=self.skip4,
+                                    command=lambda: self.toggle_frame(a2, self.skip4.get()),
+                                    font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50', 
+                                    selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        skip4_check.pack(side="right", padx=10)
+        create_tooltip(skip4_check, "Skip non-Gaussian parameter calculation step if already completed")
+        
+        a2 = tk.LabelFrame(alpha_frame, text="", relief='groove', borderwidth=1, bg='#f0f0f0')
+        a2.pack(fill="both", expand=True, padx=2, pady=2)
         
         # Calculation type selection
         tk.Label(a2, text="Calculation Type:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=0, sticky="e", padx=5, pady=5)
@@ -496,6 +511,8 @@ class PipelineGUI(tk.Tk):
                                        bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
         validate_check.grid(row=row_offset+1, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(validate_check, "Perform data validation checks during processing. Helps catch errors but adds slight overhead.")
+        
+        self.toggle_frame(a2, self.skip4.get())
 
         # --- SLURM parameters ---
         # Center the SLURM section horizontally
@@ -1234,86 +1251,87 @@ The script will submit all .sh files using sbatch commands."""
                     ""
                 ])
 
-            # Step 4: Non-Gaussian Parameter Calculation (always runs)
-            in4,out4,np2,minf = [v.get().strip() for v in self.a2_vars]
-            calc_type = self.calc_type_var.get()
-            chunk_processing = self.a2_chunk_processing.get()
-            validate_data = self.a2_validate.get()
-            
-            if calc_type == "alpha2_msd":
-                lines.extend([
-                    "    # Step 4: α₂(t) and MSD Calculation (Optimized)",
-                    "    print('\\nStep 4: Computing MSD and α₂(t) parameter...')",
-                    "    try:",
-                    "        # Try importing compiled version first, fallback to Python version",
-                    "        try:",
-                    "            from main_functions.alpha2_MSD import a2_MSD",
-                    "        except (ImportError, AttributeError) as import_err:",
-                    "            print(f'Warning: Compiled version failed ({import_err}), using Python version')",
-                    "            import sys",
-                    "            import importlib.util",
-                    "            spec = importlib.util.spec_from_file_location('alpha2_MSD', 'main_functions/alpha2_MSD.py')",
-                    "            alpha2_module = importlib.util.module_from_spec(spec)",
-                    "            spec.loader.exec_module(alpha2_module)",
-                    "            a2_MSD = alpha2_module.a2_MSD",
-                    f"        results_alpha2 = a2_MSD(",
-                    f"            baseDir={repr(bd)},",
-                    f"            INdir={repr(in4)},",
-                    f"            OUTdir={repr(out4)},",
-                    f"            num_dcd={nd},",
-                    f"            partcl_num=int({np2}),",
-                    f"            numFrames=int({minf}),",
-                    f"            chunk_processing={chunk_processing},",
-                    f"            validate_data={validate_data}",
-                    "        )",
-                    "        all_results['alpha2_MSD'] = results_alpha2",
-                    "        if results_alpha2['success'] > 0:",
-                    "            print(f'✓ α₂(t) and MSD calculation completed using {results_alpha2[\"success\"]} trajectory files')",
-                    "            print(f'  Data quality: {results_alpha2.get(\"data_quality\", \"N/A\")}')",
-                    "        else:",
-                    "            print('✗ α₂(t) and MSD calculation failed')",
-                    "    except Exception as e:",
-                    "        print(f'✗ α₂(t) and MSD calculation failed: {e}')",
-                    "        sys.exit(1)",
-                    ""
-                ])
-            else:  # alpha_xz
-                lines.extend([
-                    "    # Step 4: α_xz(t) Calculation (Optimized)",
-                    "    print('\\nStep 4: Computing α_xz(t) parameter...')",
-                    "    try:",
-                    "        # Try importing compiled version first, fallback to Python version",
-                    "        try:",
-                    "            from main_functions.axz import alpha_xz",
-                    "        except (ImportError, AttributeError) as import_err:",
-                    "            print(f'Warning: Compiled version failed ({import_err}), using Python version')",
-                    "            import sys",
-                    "            import importlib.util",
-                    "            spec = importlib.util.spec_from_file_location('axz', 'main_functions/axz.py')",
-                    "            axz_module = importlib.util.module_from_spec(spec)",
-                    "            spec.loader.exec_module(axz_module)",
-                    "            alpha_xz = axz_module.alpha_xz",
-                    f"        results_alpha_xz = alpha_xz(",
-                    f"            baseDir={repr(bd)},",
-                    f"            INdir={repr(in4)},",
-                    f"            OUTdir={repr(out4)},",
-                    f"            num_dcd={nd},",
-                    f"            partcl_num=int({np2}),",
-                    f"            numFrames=int({minf}),",
-                    f"            chunk_processing={chunk_processing},",
-                    f"            validate_data={validate_data}",
-                    "        )",
-                    "        all_results['alpha_xz'] = results_alpha_xz",
-                    "        if results_alpha_xz['success'] > 0:",
-                    "            print(f'✓ α_xz(t) calculation completed using {results_alpha_xz[\"success\"]} trajectory files')",
-                    "            print(f'  Data quality: {results_alpha_xz.get(\"data_quality\", \"N/A\")}')",
-                    "        else:",
-                    "            print('✗ α_xz(t) calculation failed')",
-                    "    except Exception as e:",
-                    "        print(f'✗ α_xz(t) calculation failed: {e}')",
-                    "        sys.exit(1)",
-                    ""
-                ])
+            # Step 4: Non-Gaussian Parameter Calculation
+            if not self.skip4.get():
+                in4,out4,np2,minf = [v.get().strip() for v in self.a2_vars]
+                calc_type = self.calc_type_var.get()
+                chunk_processing = self.a2_chunk_processing.get()
+                validate_data = self.a2_validate.get()
+                
+                if calc_type == "alpha2_msd":
+                    lines.extend([
+                        "    # Step 4: α₂(t) and MSD Calculation (Optimized)",
+                        "    print('\\nStep 4: Computing MSD and α₂(t) parameter...')",
+                        "    try:",
+                        "        # Try importing compiled version first, fallback to Python version",
+                        "        try:",
+                        "            from main_functions.alpha2_MSD import a2_MSD",
+                        "        except (ImportError, AttributeError) as import_err:",
+                        "            print(f'Warning: Compiled version failed ({import_err}), using Python version')",
+                        "            import sys",
+                        "            import importlib.util",
+                        "            spec = importlib.util.spec_from_file_location('alpha2_MSD', 'main_functions/alpha2_MSD.py')",
+                        "            alpha2_module = importlib.util.module_from_spec(spec)",
+                        "            spec.loader.exec_module(alpha2_module)",
+                        "            a2_MSD = alpha2_module.a2_MSD",
+                        f"        results_alpha2 = a2_MSD(",
+                        f"            baseDir={repr(bd)},",
+                        f"            INdir={repr(in4)},",
+                        f"            OUTdir={repr(out4)},",
+                        f"            num_dcd={nd},",
+                        f"            partcl_num=int({np2}),",
+                        f"            numFrames=int({minf}),",
+                        f"            chunk_processing={chunk_processing},",
+                        f"            validate_data={validate_data}",
+                        "        )",
+                        "        all_results['alpha2_MSD'] = results_alpha2",
+                        "        if results_alpha2['success'] > 0:",
+                        "            print(f'✓ α₂(t) and MSD calculation completed using {results_alpha2[\"success\"]} trajectory files')",
+                        "            print(f'  Data quality: {results_alpha2.get(\"data_quality\", \"N/A\")}')",
+                        "        else:",
+                        "            print('✗ α₂(t) and MSD calculation failed')",
+                        "    except Exception as e:",
+                        "        print(f'✗ α₂(t) and MSD calculation failed: {e}')",
+                        "        sys.exit(1)",
+                        ""
+                    ])
+                else:  # alpha_xz
+                    lines.extend([
+                        "    # Step 4: α_xz(t) Calculation (Optimized)",
+                        "    print('\\nStep 4: Computing α_xz(t) parameter...')",
+                        "    try:",
+                        "        # Try importing compiled version first, fallback to Python version",
+                        "        try:",
+                        "            from main_functions.axz import alpha_xz",
+                        "        except (ImportError, AttributeError) as import_err:",
+                        "            print(f'Warning: Compiled version failed ({import_err}), using Python version')",
+                        "            import sys",
+                        "            import importlib.util",
+                        "            spec = importlib.util.spec_from_file_location('axz', 'main_functions/axz.py')",
+                        "            axz_module = importlib.util.module_from_spec(spec)",
+                        "            spec.loader.exec_module(axz_module)",
+                        "            alpha_xz = axz_module.alpha_xz",
+                        f"        results_alpha_xz = alpha_xz(",
+                        f"            baseDir={repr(bd)},",
+                        f"            INdir={repr(in4)},",
+                        f"            OUTdir={repr(out4)},",
+                        f"            num_dcd={nd},",
+                        f"            partcl_num=int({np2}),",
+                        f"            numFrames=int({minf}),",
+                        f"            chunk_processing={chunk_processing},",
+                        f"            validate_data={validate_data}",
+                        "        )",
+                        "        all_results['alpha_xz'] = results_alpha_xz",
+                        "        if results_alpha_xz['success'] > 0:",
+                        "            print(f'✓ α_xz(t) calculation completed using {results_alpha_xz[\"success\"]} trajectory files')",
+                        "            print(f'  Data quality: {results_alpha_xz.get(\"data_quality\", \"N/A\")}')",
+                        "        else:",
+                        "            print('✗ α_xz(t) calculation failed')",
+                        "    except Exception as e:",
+                        "        print(f'✗ α_xz(t) calculation failed: {e}')",
+                        "        sys.exit(1)",
+                        ""
+                    ])
 
             lines.extend([
                 "    # Summary",
