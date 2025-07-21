@@ -1954,11 +1954,12 @@ The script will submit all .sh files using sbatch commands."""
                     f"            OUTdir={repr(out1)},",
                     f"            psf={repr(psf)},",
                     f"            dcd={repr(dcd)},",
-                    f"            dcd_indices=selected_dcds,",
+                    f"            num_dcd=len(selected_dcds),",
                     f"            particles={repr(parts)},",
                     f"            resnam={repr(resname)},",
                     f"            vmd={repr(vmd)},",
-                    f"            max_workers={max_workers if use_parallel else 1}",
+                    f"            max_workers={max_workers if use_parallel else 1},",
+                    f"            dcd_indices=selected_dcds",
                     "        )",
                     "        all_results['coordinates_extract'] = results_coords",
                     f"        expected_files = len(selected_dcds)",
@@ -2113,6 +2114,17 @@ The script will submit all .sh files using sbatch commands."""
 
             sb = [v.get().strip() for v in self.sbatch_vars]
             # sb order: Nodes, Partition, QOS, CPUs, Tasks, Memory (GB), Walltime, Output prefix, Email
+            
+            # Fix output prefix - remove wildcards and use proper job name
+            output_prefix = sb[7]
+            if not output_prefix or output_prefix in ['*', 'sbatch*', 'sbatch*n']:
+                # Generate a proper job name based on the main python file
+                output_prefix = os.path.splitext(main_fn)[0]  # Remove .py extension if present
+            
+            # Remove any remaining wildcards or problematic characters
+            output_prefix = output_prefix.replace('*', '').replace('?', '').replace('[', '').replace(']', '')
+            if not output_prefix:
+                output_prefix = "pipeline_job"
 
             with open(sub_full_path, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -2126,7 +2138,7 @@ The script will submit all .sh files using sbatch commands."""
                 if sb[5].strip():  # Only add memory if specified
                     f.write(f"#SBATCH --mem={sb[5]}G\n")
                 f.write(f"#SBATCH -t {sb[6]}\n")
-                f.write(f"#SBATCH -o {sb[7]}.log\n")
+                f.write(f"#SBATCH -o {output_prefix}.log\n")
                 f.write("#SBATCH --mail-type=ALL\n")
                 email = sb[8]
                 if "@" not in email:
