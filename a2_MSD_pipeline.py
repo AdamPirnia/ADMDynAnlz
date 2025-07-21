@@ -938,11 +938,11 @@ class PipelineGUI(tk.Tk):
             row=0, column=2, padx=5, pady=5
         )
 
-        tk.Label(common, text="Number of DCDs:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(common, text="Number of DCDs:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=3, sticky="e", padx=5, pady=5)
         self.num_dcd_var = tk.IntVar(value=1)
         dcd_entry = tk.Entry(common, textvariable=self.num_dcd_var, width=15, font=("Arial", 10),
                             relief='solid', borderwidth=1)
-        dcd_entry.grid(row=1, column=1, sticky="w", padx=5, pady=5)
+        dcd_entry.grid(row=0, column=4, sticky="w", padx=5, pady=5)
         create_tooltip(dcd_entry, "Total number of trajectory DCD files to process (e.g., 100 for com_0.dat through com_99.dat)")
 
         tk.Label(common, text="Number of Particles:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=2, column=0, sticky="e", padx=5, pady=5)
@@ -953,11 +953,11 @@ class PipelineGUI(tk.Tk):
         create_tooltip(particles_entry, "Total number of molecules/particles in each trajectory file")
 
         # Common term placeholder
-        tk.Label(common, text="Common Term {*}:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=3, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(common, text="Common Term {*}:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=2, column=3, sticky="e", padx=5, pady=5)
         self.common_term_var = tk.StringVar(value="")
         common_term_entry = tk.Entry(common, textvariable=self.common_term_var, width=30, font=("Arial", 10),
                                    relief='solid', borderwidth=1)
-        common_term_entry.grid(row=3, column=1, sticky="w", padx=5, pady=5)
+        common_term_entry.grid(row=2, column=4, sticky="w", padx=5, pady=5)
         create_tooltip(common_term_entry, "Common term to replace '*' in all path/name fields. Example: '/scratch/user/project' - then use '*' in paths like '*/input' → '/scratch/user/project/input'")
 
         # --- Trajectory Characteristics for Intelligent Optimization ---
@@ -994,19 +994,19 @@ class PipelineGUI(tk.Tk):
         create_tooltip(precision_combo, "Coordinate precision: 'single' (4 bytes, ~50% smaller files) or 'double' (8 bytes, full precision)")
 
         # Third row - available memory and max workers
-        tk.Label(traj_info, text="Available memory (GB):", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=2, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(traj_info, text="Available memory (GB):", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=4, sticky="e", padx=5, pady=5)
         memory_entry = tk.Entry(traj_info, textvariable=self.available_memory_gb, width=15, font=("Arial", 10),
                                relief='solid', borderwidth=1)
-        memory_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
+        memory_entry.grid(row=0, column=5, sticky="w", padx=5, pady=5)
         create_tooltip(memory_entry, "Available system memory in GB (e.g., 240). Used to optimize chunk sizes and worker counts.")
 
-        tk.Label(traj_info, text="Max Workers:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=2, column=2, sticky="e", padx=5, pady=5)
+        tk.Label(traj_info, text="Max Workers:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=4, sticky="e", padx=5, pady=5)
         workers_entry = tk.Entry(traj_info, textvariable=self.max_workers_var, width=15, font=("Arial", 10),
                                 relief='solid', borderwidth=1)
-        workers_entry.grid(row=2, column=3, sticky="w", padx=5, pady=5)
+        workers_entry.grid(row=1, column=5, sticky="w", padx=5, pady=5)
         create_tooltip(workers_entry, "Number of CPU cores for parallel processing. Used in chunk size optimization: more workers = faster but smaller chunk sizes.")
         tk.Label(traj_info, text=f"(auto: {mp.cpu_count()})", 
-                font=("Arial", 9), bg='#f0f0f0', fg='#7f8c8d').grid(row=2, column=4, sticky="w", padx=5)
+                font=("Arial", 9), bg='#f0f0f0', fg='#7f8c8d').grid(row=1, column=6, sticky="w", padx=5)
 
         # Calculate button
         calc_btn = tk.Button(traj_info, text="🧠 Calculate Optimal Settings", 
