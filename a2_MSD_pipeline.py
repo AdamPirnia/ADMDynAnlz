@@ -162,6 +162,9 @@ class CalculationsWindow(tk.Toplevel):
     
     def init_variables(self):
         """Initialize all calculation variables"""
+        # Common parameters
+        self.common_term_var = tk.StringVar(value="")
+        
         # Alpha2/MSD variables
         self.skip_alpha2 = tk.BooleanVar(value=False)
         self.calc_type_var = tk.StringVar(value="alpha2_msd")
@@ -554,6 +557,9 @@ class CalculationsWindow(tk.Toplevel):
     def generate_alpha2_script(self, baseDir, num_dcd, num_particles, max_workers, output_path):
         """Generate Alpha2/MSD calculation script"""
         in4, out4, minf = [v.get().strip() for v in self.a2_vars]
+        # Apply common term expansion to alpha2/MSD variables
+        in4, out4, minf = [self.parent.expand_common_term(var) for var in [in4, out4, minf]]
+        
         calc_type = self.calc_type_var.get()
         chunk_processing = self.a2_chunk_processing.get()
         validate_data = self.a2_validate.get()
@@ -640,6 +646,8 @@ if __name__ == '__main__':
     def generate_individual_dipole_script(self, baseDir, num_dcd, num_particles, max_workers, output_path):
         """Generate individual dipole moment calculation script"""
         coords_in, com_in, dipole_out, charges_str, atoms_per_particle_str, stride_str = [v.get().strip() for v in self.individual_dipole_vars]
+        # Apply common term expansion to individual dipole variables
+        coords_in, com_in, dipole_out = [self.expand_common_term(var) for var in [coords_in, com_in, dipole_out]]
         
         if not all([coords_in, com_in, dipole_out, charges_str, atoms_per_particle_str]):
             raise ValueError("All required individual dipole parameters must be provided")
@@ -730,6 +738,8 @@ if __name__ == '__main__':
     def generate_collective_dipole_script(self, baseDir, num_dcd, num_particles, max_workers, output_path):
         """Generate collective dipole moment calculation script using VMD"""
         traj_in, dipole_out, psf_base, dcd_base, target_sel, vmd_path = [v.get().strip() for v in self.collective_dipole_vars]
+        # Apply common term expansion to collective dipole variables
+        traj_in, dipole_out, psf_base, dcd_base, vmd_path = [self.expand_common_term(var) for var in [traj_in, dipole_out, psf_base, dcd_base, vmd_path]]
         
         if not all([traj_in, dipole_out, psf_base, dcd_base, target_sel, vmd_path]):
             raise ValueError("All collective dipole parameters must be provided")
@@ -829,7 +839,7 @@ class PipelineGUI(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("MD Dynamics Analysis Pipeline - Data Preprocessing")
-        self.geometry("1200x750")  # Wider and shorter for better layout
+        self.geometry("1300x1000")  # Wider and shorter for better layout
         self.configure(bg='#f0f0f0')  # Light gray background for modern look
         
         # Configure ttk styling for better appearance
@@ -942,7 +952,13 @@ class PipelineGUI(tk.Tk):
         particles_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(particles_entry, "Total number of molecules/particles in each trajectory file")
 
-
+        # Common term placeholder
+        tk.Label(common, text="Common Term {*}:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=3, column=0, sticky="e", padx=5, pady=5)
+        self.common_term_var = tk.StringVar(value="")
+        common_term_entry = tk.Entry(common, textvariable=self.common_term_var, width=30, font=("Arial", 10),
+                                   relief='solid', borderwidth=1)
+        common_term_entry.grid(row=3, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(common_term_entry, "Common term to replace '*' in all path/name fields. Example: '/scratch/user/project' - then use '*' in paths like '*/input' → '/scratch/user/project/input'")
 
         # --- Trajectory Characteristics for Intelligent Optimization ---
         traj_info = tk.LabelFrame(self.scrollable_frame, text="Trajectory Characteristics (for Smart Optimization)", 
@@ -1514,6 +1530,7 @@ class PipelineGUI(tk.Tk):
             "baseDir": self.baseDir_var.get(),
             "num_dcd": self.num_dcd_var.get(),
             "num_particles": self.num_particles_var.get(),
+            "common_term": self.common_term_var.get(),
             "max_workers": self.max_workers_var.get(),
             "coords": [v.get() for v in self.coords_vars],
             "coords_parallel": self.coords_parallel.get(),
@@ -1553,6 +1570,7 @@ class PipelineGUI(tk.Tk):
         self.baseDir_var.set(data.get("baseDir",""))
         self.num_dcd_var.set(data.get("num_dcd",1))
         self.num_particles_var.set(data.get("num_particles",1000))
+        self.common_term_var.set(data.get("common_term", ""))
         self.max_workers_var.set(data.get("max_workers", min(4, mp.cpu_count())))
 
         for v,val in zip(self.coords_vars, data.get("coords",[])):
@@ -1823,6 +1841,9 @@ The script will submit all .sh files using sbatch commands."""
             nd = int(self.num_dcd_var.get())
             max_workers = int(self.max_workers_var.get())
             
+            # Apply common term expansion to base directory
+            bd = self.expand_common_term(bd)
+            
             # Create output folder
             output_folder = self.output_folder_var.get().strip()
             if not output_folder:
@@ -1907,6 +1928,9 @@ The script will submit all .sh files using sbatch commands."""
             # Step 1: Coordinate Extraction
             if not self.skip1.get():
                 in1,out1,psf,dcd,parts,resname,vmd = [v.get().strip() for v in self.coords_vars]
+                # Apply common term expansion to step 1 variables
+                in1, out1, psf, dcd, vmd = [self.expand_common_term(var) for var in [in1, out1, psf, dcd, vmd]]
+                
                 use_parallel = self.coords_parallel.get()
                 coords_dcd_selection = self.coords_dcd_selection.get().strip()
                 
@@ -1951,6 +1975,9 @@ The script will submit all .sh files using sbatch commands."""
             # Step 2: Unwrap Coordinates
             if not self.skip2.get():
                 in2,out2,xsc,na = [v.get().strip() for v in self.unwrap_vars]
+                # Apply common term expansion to step 2 variables  
+                in2, out2, xsc = [self.expand_common_term(var) for var in [in2, out2, xsc]]
+                
                 iv = self.unwrap_opt[0].get().strip() or "slice(None)"
                 st = self.unwrap_opt[1].get().strip() or "1"
                 chunk_size = self.unwrap_chunk_var.get().strip()
@@ -2000,8 +2027,9 @@ The script will submit all .sh files using sbatch commands."""
             # Step 3: COM Calculation
             if not self.skip3.get():
                 in3,out3,ap,ml = [v.get().strip() for v in self.com_vars]
-                masses = [float(x) for x in ml.split(",") if x.strip()]
-                use_parallel = self.com_parallel.get()
+                # Apply common term expansion to step 3 variables
+                in3, out3 = [self.expand_common_term(var) for var in [in3, out3]]
+                
                 use_memmap = self.com_memmap.get()
                 num_particles = int(self.num_particles_var.get())
                 com_dcd_selection = self.com_dcd_selection.get().strip()
@@ -2027,8 +2055,8 @@ The script will submit all .sh files using sbatch commands."""
                     f"            dcd_indices=selected_dcds,",
                     f"            prtcl_num={num_particles},",
                     f"            prtcl_atoms=int({ap}),",
-                    f"            particl_mass={masses},",
-                    f"            max_workers={max_workers if use_parallel else 1},",
+                    f"            particl_mass={ml.split(',')},",
+                    f"            max_workers={max_workers if self.com_parallel.get() else 1},",
                     f"            use_memmap={use_memmap}",
                     "        )",
                     "        all_results['COM_calc'] = results_com",
@@ -2064,8 +2092,10 @@ The script will submit all .sh files using sbatch commands."""
 
             # --- Write the main .py file ---
             main_base = self.mainfile_var.get().strip()
+            main_base = self.expand_common_term(main_base)
             if not main_base:
-                raise ValueError("Main script file name is required")
+                main_base = "main_analysis_pipeline"
+            
             main_fn = main_base if main_base.endswith(".py") else main_base + ".py"
             main_full_path = os.path.join(output_path, main_fn)
 
@@ -2074,8 +2104,10 @@ The script will submit all .sh files using sbatch commands."""
 
             # --- Write the submission .sh file ---
             sub_base = self.submitfile_var.get().strip()
+            sub_base = self.expand_common_term(sub_base)
             if not sub_base:
-                raise ValueError("Submit script file name is required")
+                sub_base = "submit_analysis_pipeline"
+            
             sub_fn = sub_base if sub_base.endswith(".sh") else sub_base + ".sh"
             sub_full_path = os.path.join(output_path, sub_fn)
 
@@ -2934,6 +2966,17 @@ Keywords=molecular;dynamics;analysis;MSD;science;
             # Just create an empty file so iconbitmap doesn't crash
             with open(filename, 'wb') as f:
                 f.write(b'')
+
+    def expand_common_term(self, value):
+        """Replace asterisks (*) in value with the common term"""
+        common_term = self.common_term_var.get().strip()
+        if common_term and '*' in value:
+            return value.replace('*', common_term)
+        return value
+
+    def update_dipole_fields(self):
+        """Update the displayed dipole parameter fields based on calculation type"""
+        calc_type = self.dipole_calc_type.get()
 
 
 if __name__=="__main__":
