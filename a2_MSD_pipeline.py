@@ -171,7 +171,10 @@ class CalculationsWindow(tk.Toplevel):
         
         # Dipole calculation variables
         self.skip_dipole = tk.BooleanVar(value=False)
-        self.dipole_vars = []
+        self.dipole_calc_type = tk.StringVar(value="individual")  # "individual" or "collective"
+        self.dipole_vars = []  # Will be set to individual_dipole_vars or collective_dipole_vars
+        self.individual_dipole_vars = []
+        self.collective_dipole_vars = []
         self.dipole_parallel = tk.BooleanVar(value=True)
         self.dipole_validate = tk.BooleanVar(value=True)
         self.dipole_chunk_processing = tk.BooleanVar(value=True)
@@ -339,12 +342,41 @@ class CalculationsWindow(tk.Toplevel):
         dipole_content = tk.LabelFrame(parent, text="", relief='groove', borderwidth=1, bg='#f0f0f0')
         dipole_content.pack(fill="both", expand=True, padx=10, pady=5)
         
-        # Parameters grid
-        params_frame = tk.Frame(dipole_content, bg='#f0f0f0')
-        params_frame.pack(fill="x", padx=10, pady=10)
+        # Dipole calculation type selection
+        dipole_type_frame = tk.Frame(dipole_content, bg='#f0f0f0')
+        dipole_type_frame.pack(fill="x", padx=10, pady=10)
         
-        labels = ["Coords INdir", "COM INdir", "OUTdir", "Atom charges", "Atoms per particle", "Stride (optional)"]
-        tooltips = [
+        tk.Label(dipole_type_frame, text="Calculation Method:*", font=("Arial", 10, "bold"), bg='#f0f0f0', fg='#2c3e50').pack(side="left")
+        
+        # Initialize dipole calculation type variable
+        self.dipole_calc_type = tk.StringVar(value="individual")
+        
+        radio_frame = tk.Frame(dipole_type_frame, bg='#f0f0f0')
+        radio_frame.pack(side="left", padx=20)
+        
+        individual_radio = tk.Radiobutton(radio_frame, text="Individual Dipole Moments", 
+                                        variable=self.dipole_calc_type, value="individual",
+                                        command=self.update_dipole_fields,
+                                        font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50',
+                                        selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        individual_radio.pack(side=tk.LEFT, padx=5)
+        create_tooltip(individual_radio, "Calculate individual dipole moments for each molecule using Python implementation (requires charges and atoms per particle)")
+        
+        collective_radio = tk.Radiobutton(radio_frame, text="Collective Dipole Moment", 
+                                        variable=self.dipole_calc_type, value="collective",
+                                        command=self.update_dipole_fields,
+                                        font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50',
+                                        selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        collective_radio.pack(side=tk.LEFT, padx=5)
+        create_tooltip(collective_radio, "Calculate collective dipole moment of selected atoms using VMD implementation (requires VMD path and target selection)")
+        
+        # Create frames for different parameter sets
+        self.individual_params_frame = tk.Frame(dipole_content, bg='#f0f0f0')
+        self.collective_params_frame = tk.Frame(dipole_content, bg='#f0f0f0')
+        
+        # Individual dipole parameters
+        individual_labels = ["Coords INdir", "COM INdir", "OUTdir", "Atom charges", "Atoms per particle", "Stride (optional)"]
+        individual_tooltips = [
             "Input directory containing coordinate files (continued_xyz_*.dat)",
             "Input directory containing COM files (com_*.dat)",
             "Output directory for dipole moment files",
@@ -353,8 +385,9 @@ class CalculationsWindow(tk.Toplevel):
             "Frame stride for processing (default: 1, use higher values to skip frames)"
         ]
         
-        for i, (lbl, tooltip) in enumerate(zip(labels, tooltips)):
-            tk.Label(params_frame, text=f"{lbl}:*" if "optional" not in lbl else f"{lbl}:", 
+        self.individual_dipole_vars = []
+        for i, (lbl, tooltip) in enumerate(zip(individual_labels, individual_tooltips)):
+            tk.Label(self.individual_params_frame, text=f"{lbl}:*" if "optional" not in lbl else f"{lbl}:", 
                     font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(
                 row=i, column=0, sticky="e", padx=5, pady=5)
             v = tk.StringVar()
@@ -362,12 +395,45 @@ class CalculationsWindow(tk.Toplevel):
                 v.set("1")  # Default stride
             elif lbl == "Atoms per particle":
                 v.set("3")  # Default for common molecules like water
-            entry = tk.Entry(params_frame, textvariable=v, width=50, font=("Arial", 10))
+            entry = tk.Entry(self.individual_params_frame, textvariable=v, width=50, font=("Arial", 10))
             entry.grid(row=i, column=1, padx=5, pady=5, sticky="w")
             create_tooltip(entry, tooltip)
-            self.dipole_vars.append(v)
+            self.individual_dipole_vars.append(v)
         
-        # Advanced options
+        # Collective dipole parameters
+        collective_labels = ["Trajectory INdir", "OUTdir", "PSF base", "DCD base", "Target selection", "VMD path"]
+        collective_tooltips = [
+            "Input directory containing trajectory chunks (e.g., 0to1ns, 1to2ns folders)",
+            "Output directory for collective dipole moment files",
+            "Base filename for PSF topology files (e.g., 'system' for system.psf)",
+            "Base filename for DCD trajectory files (e.g., 'traj' for traj.dcd)",
+            "VMD atom selection string (e.g., 'resname WAT', 'protein', 'segname PROT and backbone', 'index 0 to 999')",
+            "Full path to VMD executable"
+        ]
+        
+        self.collective_dipole_vars = []
+        for i, (lbl, tooltip) in enumerate(zip(collective_labels, collective_tooltips)):
+            tk.Label(self.collective_params_frame, text=f"{lbl}:*", 
+                    font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(
+                row=i, column=0, sticky="e", padx=5, pady=5)
+            v = tk.StringVar()
+            if lbl == "Target selection":
+                v.set("resname WAT")  # Default to water selection
+            entry = tk.Entry(self.collective_params_frame, textvariable=v, width=50, font=("Arial", 10))
+            entry.grid(row=i, column=1, padx=5, pady=5, sticky="w")
+            if lbl == "VMD path":
+                tk.Button(self.collective_params_frame, text="Browse...", 
+                         command=lambda: self.browse_vmd_dipole(v), font=("Arial", 10),
+                         bg='#ecf0f1', fg='#2c3e50', relief='raised', borderwidth=1, cursor='hand2').grid(
+                    row=i, column=2, padx=5, pady=5
+                )
+            create_tooltip(entry, tooltip)
+            self.collective_dipole_vars.append(v)
+        
+        # Keep reference to dipole_vars for backward compatibility
+        self.dipole_vars = self.individual_dipole_vars
+        
+        # Advanced options (shared between both calculation types)
         options_frame = tk.Frame(dipole_content, bg='#f0f0f0')
         options_frame.pack(fill="x", padx=10, pady=10)
         
@@ -392,7 +458,13 @@ class CalculationsWindow(tk.Toplevel):
         validate_check.grid(row=2, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(validate_check, "Perform data validation checks during processing")
         
+        # Store references to content frame and options
         self.dipole_content_frame = dipole_content
+        self.dipole_options_frame = options_frame
+        
+        # Initialize the display based on default selection
+        self.update_dipole_fields()
+        
         self.toggle_frame(dipole_content, self.skip_dipole.get())
     
     def toggle_frame(self, frame, skip):
@@ -557,11 +629,20 @@ if __name__ == '__main__':
         return script_path
     
     def generate_dipole_script(self, baseDir, num_dcd, num_particles, max_workers, output_path):
-        """Generate dipole calculation script"""
-        coords_in, com_in, dipole_out, charges_str, atoms_per_particle_str, stride_str = [v.get().strip() for v in self.dipole_vars]
+        """Generate dipole calculation script based on selected calculation type"""
+        calc_type = self.dipole_calc_type.get()
+        
+        if calc_type == "individual":
+            return self.generate_individual_dipole_script(baseDir, num_dcd, num_particles, max_workers, output_path)
+        else:
+            return self.generate_collective_dipole_script(baseDir, num_dcd, num_particles, max_workers, output_path)
+    
+    def generate_individual_dipole_script(self, baseDir, num_dcd, num_particles, max_workers, output_path):
+        """Generate individual dipole moment calculation script"""
+        coords_in, com_in, dipole_out, charges_str, atoms_per_particle_str, stride_str = [v.get().strip() for v in self.individual_dipole_vars]
         
         if not all([coords_in, com_in, dipole_out, charges_str, atoms_per_particle_str]):
-            raise ValueError("All required dipole parameters must be provided")
+            raise ValueError("All required individual dipole parameters must be provided")
         
         # Parse charges
         try:
@@ -588,11 +669,11 @@ if __name__ == '__main__':
         chunk_processing = self.dipole_chunk_processing.get()
         validate_data = self.dipole_validate.get()
         
-        script_path = os.path.join(output_path, "dipole_calculation.py")
+        script_path = os.path.join(output_path, "individual_dipole_calculation.py")
         
         script_content = f'''#!/usr/bin/env python3
 """
-Dipole Moment Calculation Script
+Individual Dipole Moment Calculation Script
 Generated by MD Analysis Pipeline GUI v2.0
 """
 
@@ -602,7 +683,7 @@ import os
 
 def main():
     print('='*60)
-    print('DIPOLE MOMENT CALCULATION')
+    print('INDIVIDUAL DIPOLE MOMENT CALCULATION')
     print('='*60)
     start_time = time.time()
     
@@ -610,31 +691,31 @@ def main():
         # Import dipole function
         from main_functions.dipole_function import dipole_functions
         
-                 results = dipole_functions(
-             baseDir={repr(baseDir)},
-             Coords={repr(coords_in)},
-             COMs={repr(com_in)},
-             OUTdir={repr(dipole_out)},
-             Charges={charges},
-             num_dcds={num_dcd},
-             num_particles={num_particles},
-             atoms_per_particle={atoms_per_particle},
-             stride={stride},
-             max_workers={max_workers if use_parallel else 1},
-             chunk_processing={chunk_processing},
-             validate_data={validate_data}
-         )
+        results = dipole_functions(
+            baseDir={repr(baseDir)},
+            Coords={repr(coords_in)},
+            COMs={repr(com_in)},
+            OUTdir={repr(dipole_out)},
+            Charges={charges},
+            num_dcds={num_dcd},
+            num_particles={num_particles},
+            atoms_per_particle={atoms_per_particle},
+            stride={stride},
+            max_workers={max_workers if use_parallel else 1},
+            chunk_processing={chunk_processing},
+            validate_data={validate_data}
+        )
         
         total_time = time.time() - start_time
         
-        print(f'\\n✓ Dipole moment calculation completed!')
+        print(f'\\n✓ Individual dipole moment calculation completed!')
         print(f'  Successful files: {{results["success"]}}/{num_dcd}')
         print(f'  Total time: {{total_time:.2f}}s')
         if 'overall_mean_magnitude' in results:
             print(f'  Average dipole magnitude: {{results["overall_mean_magnitude"]:.3f}} ± {{results["overall_std_magnitude"]:.3f}} D')
         
     except Exception as e:
-        print(f'✗ Dipole moment calculation failed: {{e}}')
+        print(f'✗ Individual dipole moment calculation failed: {{e}}')
         sys.exit(1)
 
 if __name__ == '__main__':
@@ -645,6 +726,99 @@ if __name__ == '__main__':
             f.write(script_content)
         
         return script_path
+    
+    def generate_collective_dipole_script(self, baseDir, num_dcd, num_particles, max_workers, output_path):
+        """Generate collective dipole moment calculation script using VMD"""
+        traj_in, dipole_out, psf_base, dcd_base, target_sel, vmd_path = [v.get().strip() for v in self.collective_dipole_vars]
+        
+        if not all([traj_in, dipole_out, psf_base, dcd_base, target_sel, vmd_path]):
+            raise ValueError("All collective dipole parameters must be provided")
+        
+        use_parallel = self.dipole_parallel.get()
+        
+        script_path = os.path.join(output_path, "collective_dipole_calculation.py")
+        
+        script_content = f'''#!/usr/bin/env python3
+"""
+Collective Dipole Moment Calculation Script (VMD)
+Generated by MD Analysis Pipeline GUI v2.0
+"""
+
+import sys
+import time
+import os
+
+def main():
+    print('='*60)
+    print('COLLECTIVE DIPOLE MOMENT CALCULATION (VMD)')
+    print('='*60)
+    start_time = time.time()
+    
+    try:
+        # Import VMD dipole function
+        from main_functions.vmd_dipole import vmd_dipole_collective
+        
+        results = vmd_dipole_collective(
+            baseDir={repr(baseDir)},
+            INdir={repr(traj_in)},
+            OUTdir={repr(dipole_out)},
+            psf={repr(psf_base)},
+            dcd={repr(dcd_base)},
+            num_dcd={num_dcd},
+            target={repr(target_sel)},
+            vmd={repr(vmd_path)},
+            max_workers={max_workers if use_parallel else 1}
+        )
+        
+        total_time = time.time() - start_time
+        
+        print(f'\\n✓ Collective dipole moment calculation completed!')
+        print(f'  Successful files: {{results["success"]}}/{num_dcd}')
+        print(f'  Total time: {{total_time:.2f}}s')
+        print(f'  Target selection: {target_sel}')
+        
+    except Exception as e:
+        print(f'✗ Collective dipole moment calculation failed: {{e}}')
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()
+'''
+        
+        with open(script_path, 'w') as f:
+            f.write(script_content)
+        
+        return script_path
+    
+    def update_dipole_fields(self):
+        """Update the displayed dipole parameter fields based on calculation type"""
+        calc_type = self.dipole_calc_type.get()
+        
+        # Hide both frames first
+        self.individual_params_frame.pack_forget()
+        self.collective_params_frame.pack_forget()
+        
+        # Show the appropriate frame
+        if calc_type == "individual":
+            self.individual_params_frame.pack(fill="x", padx=10, pady=10)
+            # Update the dipole_vars reference for backward compatibility
+            self.dipole_vars = self.individual_dipole_vars
+        else:  # collective
+            self.collective_params_frame.pack(fill="x", padx=10, pady=10)
+            # For collective mode, we'll handle parameters differently in script generation
+            
+        # Force the window to update its layout
+        self.update_idletasks()
+    
+    def browse_vmd_dipole(self, var):
+        """Browse for VMD executable for dipole calculations"""
+        from tkinter import filedialog
+        f = filedialog.askopenfilename(
+            title="Select VMD Executable",
+            filetypes=[("Executable","*"), ("All files", "*")]
+        )
+        if f:
+            var.set(f)
     
     def close_window(self):
         """Close the calculations window"""
@@ -698,6 +872,12 @@ class PipelineGUI(tk.Tk):
         
         # Configure scrollable frame grid for the new layout
         self.scrollable_frame.grid_columnconfigure(0, weight=1)
+        
+        # Initialize trajectory characteristics for intelligent sizing
+        self.traj_file_size_mb = tk.StringVar(value="")
+        self.traj_num_frames = tk.StringVar(value="")
+        self.traj_num_atoms = tk.StringVar(value="")
+        self.available_memory_gb = tk.StringVar(value="")
 
         # Bind mouse wheel to canvas (Windows)
         self.canvas.bind("<MouseWheel>", self._on_mousewheel)
@@ -768,9 +948,55 @@ class PipelineGUI(tk.Tk):
         tk.Label(common, text=f"(auto-detected: {mp.cpu_count()} cores)", 
                 font=("Arial", 9), bg='#f0f0f0', fg='#7f8c8d').grid(row=3, column=2, sticky="w", padx=5)
 
+        # --- Trajectory Characteristics for Intelligent Optimization ---
+        traj_info = tk.LabelFrame(self.scrollable_frame, text="Trajectory Characteristics (for Smart Optimization)", 
+                                 font=("Arial", 11, "bold"), fg='#2c3e50', bg='#f0f0f0',
+                                 relief='groove', borderwidth=1)
+        traj_info.grid(row=2, column=0, padx=15, pady=10, sticky="ew")
+
+        # First row - file size and frames
+        tk.Label(traj_info, text="Single DCD file size (MB):", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=0, sticky="e", padx=5, pady=5)
+        file_size_entry = tk.Entry(traj_info, textvariable=self.traj_file_size_mb, width=15, font=("Arial", 10),
+                                  relief='solid', borderwidth=1)
+        file_size_entry.grid(row=0, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(file_size_entry, "Size of a single DCD file in MB (e.g., 500). Used to estimate memory requirements and optimize chunk sizes.")
+
+        tk.Label(traj_info, text="Frames per DCD:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=2, sticky="e", padx=5, pady=5)
+        frames_entry = tk.Entry(traj_info, textvariable=self.traj_num_frames, width=15, font=("Arial", 10),
+                               relief='solid', borderwidth=1)
+        frames_entry.grid(row=0, column=3, sticky="w", padx=5, pady=5)
+        create_tooltip(frames_entry, "Number of frames in each DCD file (e.g., 25000). Used to calculate memory per frame.")
+
+        # Second row - atoms and available memory
+        tk.Label(traj_info, text="Total atoms in system:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=0, sticky="e", padx=5, pady=5)
+        atoms_entry = tk.Entry(traj_info, textvariable=self.traj_num_atoms, width=15, font=("Arial", 10),
+                              relief='solid', borderwidth=1)
+        atoms_entry.grid(row=1, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(atoms_entry, "Total number of atoms in the system (e.g., 3000). Used to estimate memory per frame.")
+
+        tk.Label(traj_info, text="Available memory (GB):", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=2, sticky="e", padx=5, pady=5)
+        memory_entry = tk.Entry(traj_info, textvariable=self.available_memory_gb, width=15, font=("Arial", 10),
+                               relief='solid', borderwidth=1)
+        memory_entry.grid(row=1, column=3, sticky="w", padx=5, pady=5)
+        create_tooltip(memory_entry, "Available system memory in GB (e.g., 240). Used to optimize chunk sizes and worker counts.")
+
+        # Calculate button
+        calc_btn = tk.Button(traj_info, text="🧠 Calculate Optimal Settings", 
+                            command=self.calculate_optimal_settings, 
+                            bg="#3498db", fg="white", 
+                            font=("Arial", 10, "bold"), padx=15, pady=5,
+                            relief='raised', borderwidth=2, cursor='hand2')
+        calc_btn.grid(row=2, column=0, columnspan=2, padx=5, pady=10, sticky="w")
+        create_tooltip(calc_btn, "Automatically calculate optimal chunk sizes, worker counts, and memory settings based on your trajectory characteristics")
+
+        # Results label
+        self.optimization_results_label = tk.Label(traj_info, text="Enter trajectory info and click 'Calculate Optimal Settings' for recommendations", 
+                                                  font=("Arial", 9), bg='#f0f0f0', fg='#7f8c8d', wraplength=600)
+        self.optimization_results_label.grid(row=2, column=2, columnspan=2, sticky="w", padx=5, pady=10)
+
         # --- Steps container ---
         steps = tk.Frame(self.scrollable_frame, bg='#f0f0f0')
-        steps.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
+        steps.grid(row=3, column=0, padx=10, pady=5, sticky="ew")
 
         # ----- STEP 1: Coordinate Extraction -----
         self.skip1 = tk.BooleanVar(value=False)
@@ -811,12 +1037,22 @@ class PipelineGUI(tk.Tk):
                 )
             self.coords_vars.append(v)
         
+        # DCD selection for coordinates_extract
+        tk.Label(coords, text="DCD Selection (optional):", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=len(labels1), column=0, sticky="e", padx=5, pady=5)
+        self.coords_dcd_selection = tk.StringVar()
+        coords_dcd_entry = tk.Entry(coords, textvariable=self.coords_dcd_selection, width=25, font=("Arial", 10), relief='solid', borderwidth=1)
+        coords_dcd_entry.grid(row=len(labels1), column=1, padx=5, pady=5)
+        create_tooltip(coords_dcd_entry, "Optional: Specify which DCDs to process (e.g., '4-10' for DCDs 4 to 10, or '4-6,8-10' for DCDs 4-6 and 8-10). Leave empty to process all DCDs.")
+        tk.Label(coords, text='e.g., "4-10" or "4-6,8-10"', font=("Arial", 7), bg='#f0f0f0', fg='#7f8c8d').grid(
+            row=len(labels1), column=2, sticky="w", padx=5
+        )
+
         # Advanced options for coordinates_extract
-        tk.Label(coords, text="Use Parallel VMD:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=len(labels1), column=0, sticky="e", padx=5, pady=5)
+        tk.Label(coords, text="Use Parallel VMD:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=len(labels1)+1, column=0, sticky="e", padx=5, pady=5)
         self.coords_parallel = tk.BooleanVar(value=True)
         coords_parallel_check = tk.Checkbutton(coords, variable=self.coords_parallel, font=("Arial", 10), 
                                               bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
-        coords_parallel_check.grid(row=len(labels1), column=1, sticky="w", padx=5, pady=5)
+        coords_parallel_check.grid(row=len(labels1)+1, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(coords_parallel_check, "Enable parallel VMD processing for faster coordinate extraction")
         
         self.toggle_frame(coords, self.skip1.get())
@@ -865,19 +1101,29 @@ class PipelineGUI(tk.Tk):
             ent.grid(row=j, column=1, padx=5, pady=5)
             self.unwrap_opt.append(v)
         
-        # Advanced options for unwrap_coords
+        # DCD selection for unwrap_coords
         row_offset = len(labels2) + len(self.unwrap_opt)
-        tk.Label(unwrap, text="Chunk Size:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset, column=0, sticky="e", padx=5, pady=5)
-        self.unwrap_chunk_var = tk.StringVar(value="auto")
+        tk.Label(unwrap, text="DCD Selection (optional):", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset, column=0, sticky="e", padx=5, pady=5)
+        self.unwrap_dcd_selection = tk.StringVar()
+        unwrap_dcd_entry = tk.Entry(unwrap, textvariable=self.unwrap_dcd_selection, width=25, font=("Arial", 10), relief='solid', borderwidth=1)
+        unwrap_dcd_entry.grid(row=row_offset, column=1, padx=5, pady=5)
+        create_tooltip(unwrap_dcd_entry, "Optional: Specify which DCDs to process (e.g., '4-10' for DCDs 4 to 10, or '4-6,8-10' for DCDs 4-6 and 8-10). Leave empty to process all DCDs.")
+        tk.Label(unwrap, text='e.g., "4-10" or "4-6,8-10"', font=("Arial", 7), bg='#f0f0f0', fg='#7f8c8d').grid(
+            row=row_offset, column=2, sticky="w", padx=5
+        )
+
+        # Advanced options for unwrap_coords
+        tk.Label(unwrap, text="Chunk Size:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset+1, column=0, sticky="e", padx=5, pady=5)
+        self.unwrap_chunk_var = tk.StringVar(value="5000")
         chunk_entry = tk.Entry(unwrap, textvariable=self.unwrap_chunk_var, width=15, font=("Arial", 10), relief='solid', borderwidth=1)
-        chunk_entry.grid(row=row_offset, column=1, sticky="w", padx=5, pady=5)
-        create_tooltip(chunk_entry, "Memory chunk size for processing large files. Use 'auto' for automatic sizing, or specify number of frames (e.g., 10000)")
+        chunk_entry.grid(row=row_offset+1, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(chunk_entry, "Memory chunk size for processing large files. Smaller values (e.g., 5000) use less memory but take longer. Use 'auto' for automatic sizing, or specify number of frames.")
         
-        tk.Label(unwrap, text="Use Parallel:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset+1, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(unwrap, text="Use Parallel:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset+2, column=0, sticky="e", padx=5, pady=5)
         self.unwrap_parallel = tk.BooleanVar(value=True)
         parallel_check = tk.Checkbutton(unwrap, variable=self.unwrap_parallel, font=("Arial", 10),
                                        bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
-        parallel_check.grid(row=row_offset+1, column=1, sticky="w", padx=5, pady=5)
+        parallel_check.grid(row=row_offset+2, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(parallel_check, "Enable parallel processing for faster unwrapping of coordinates")
         
         self.toggle_frame(unwrap, self.skip2.get())
@@ -916,22 +1162,32 @@ class PipelineGUI(tk.Tk):
                 )
             self.com_vars.append(v)
         
-        # Advanced options for COM_calc
+        # DCD selection for COM_calc
         row_offset = len(labels3)
-        tk.Label(com, text="Use Parallel:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(com, text="DCD Selection (optional):", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset, column=0, sticky="e", padx=5, pady=5)
+        self.com_dcd_selection = tk.StringVar()
+        com_dcd_entry = tk.Entry(com, textvariable=self.com_dcd_selection, width=25, font=("Arial", 10), relief='solid', borderwidth=1)
+        com_dcd_entry.grid(row=row_offset, column=1, padx=5, pady=5)
+        create_tooltip(com_dcd_entry, "Optional: Specify which DCDs to process (e.g., '4-10' for DCDs 4 to 10, or '4-6,8-10' for DCDs 4-6 and 8-10). Leave empty to process all DCDs.")
+        tk.Label(com, text='e.g., "4-10" or "4-6,8-10"', font=("Arial", 7), bg='#f0f0f0', fg='#7f8c8d').grid(
+            row=row_offset, column=2, sticky="w", padx=5
+        )
+
+        # Advanced options for COM_calc
+        tk.Label(com, text="Use Parallel:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset+1, column=0, sticky="e", padx=5, pady=5)
         self.com_parallel = tk.BooleanVar(value=True)
         com_parallel_check = tk.Checkbutton(com, variable=self.com_parallel, font=("Arial", 10),
                                            bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
-        com_parallel_check.grid(row=row_offset, column=1, sticky="w", padx=5, pady=5)
+        com_parallel_check.grid(row=row_offset+1, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(com_parallel_check, "Enable parallel processing for faster COM calculations")
         
-        tk.Label(com, text="Use Memory Map:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset+1, column=0, sticky="e", padx=5, pady=5)
-        self.com_memmap = tk.BooleanVar(value=False)
+        tk.Label(com, text="Use Memory Map:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset+2, column=0, sticky="e", padx=5, pady=5)
+        self.com_memmap = tk.BooleanVar(value=True)
         com_memmap_check = tk.Checkbutton(com, variable=self.com_memmap, font=("Arial", 10),
                                          bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
-        com_memmap_check.grid(row=row_offset+1, column=1, sticky="w", padx=5, pady=5)
+        com_memmap_check.grid(row=row_offset+2, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(com_memmap_check, "Use memory mapping for very large files to reduce memory usage")
-        tk.Label(com, text="(for very large files)", font=("Arial", 7), bg='#f0f0f0', fg='#7f8c8d').grid(row=row_offset+1, column=2, sticky="w", padx=5)
+        tk.Label(com, text="(for very large files)", font=("Arial", 7), bg='#f0f0f0', fg='#7f8c8d').grid(row=row_offset+2, column=2, sticky="w", padx=5)
         
         self.toggle_frame(com, self.skip3.get())
 
@@ -939,7 +1195,7 @@ class PipelineGUI(tk.Tk):
 
         # --- SLURM parameters and Output Files side by side ---
         params_container = tk.Frame(self.scrollable_frame, bg='#f0f0f0')
-        params_container.grid(row=3, column=0, padx=15, pady=10, sticky="ew")
+        params_container.grid(row=4, column=0, padx=15, pady=10, sticky="ew")
         
         # SLURM parameters on the left
         sb = tk.LabelFrame(params_container, text="SLURM Submission Parameters",
@@ -1015,7 +1271,7 @@ class PipelineGUI(tk.Tk):
 
         # Generate button with enhanced styling
         generate_frame = tk.Frame(self.scrollable_frame, bg='#f0f0f0')
-        generate_frame.grid(row=4, column=0, pady=20)
+        generate_frame.grid(row=5, column=0, pady=20)
         
         generate_btn = tk.Button(generate_frame, text="Generate Optimized Pipeline Files", 
                  command=self.generate_files, bg="#52c77a", fg="black", 
@@ -1093,6 +1349,74 @@ class PipelineGUI(tk.Tk):
             # only disable entries and normal buttons
             if isinstance(w, (tk.Entry, tk.Button)):
                 w.configure(state=state)
+    
+    def parse_dcd_selection(self, selection_str, num_dcd):
+        """
+        Parse DCD selection string and return list of DCD indices.
+        
+        Parameters:
+        -----------
+        selection_str : str
+            Selection string like "4-10", "4-6,8-10", or empty string
+        num_dcd : int
+            Total number of DCDs available
+            
+        Returns:
+        --------
+        list : List of DCD indices to process
+        
+        Examples:
+        ---------
+        >>> parse_dcd_selection("4-10", 20)
+        [4, 5, 6, 7, 8, 9, 10]
+        >>> parse_dcd_selection("4-6,8-10", 20)
+        [4, 5, 6, 8, 9, 10]
+        >>> parse_dcd_selection("", 5)
+        [0, 1, 2, 3, 4]
+        """
+        if not selection_str.strip():
+            # Empty string means process all DCDs
+            return list(range(num_dcd))
+        
+        dcd_indices = []
+        
+        try:
+            # Split by comma for multiple ranges
+            ranges = [r.strip() for r in selection_str.split(',')]
+            
+            for range_str in ranges:
+                if '-' in range_str:
+                    # Range like "4-10"
+                    start, end = range_str.split('-', 1)
+                    start = int(start.strip())
+                    end = int(end.strip())
+                    
+                    if start > end:
+                        raise ValueError(f"Invalid range: {range_str} (start > end)")
+                    if start < 0 or end >= num_dcd:
+                        raise ValueError(f"Range {range_str} is outside valid DCD range (0-{num_dcd-1})")
+                    
+                    dcd_indices.extend(range(start, end + 1))
+                else:
+                    # Single number like "5"
+                    index = int(range_str.strip())
+                    if index < 0 or index >= num_dcd:
+                        raise ValueError(f"DCD index {index} is outside valid range (0-{num_dcd-1})")
+                    dcd_indices.append(index)
+            
+            # Remove duplicates and sort
+            dcd_indices = sorted(list(set(dcd_indices)))
+            
+            if not dcd_indices:
+                raise ValueError("No valid DCD indices found")
+                
+            return dcd_indices
+            
+        except ValueError as e:
+            if "invalid literal for int()" in str(e):
+                raise ValueError(f"Invalid DCD selection format: '{selection_str}'. Use formats like '4-10' or '4-6,8-10'")
+            else:
+                raise e
 
 
     # —— Browsers & Save dialogs ——
@@ -1181,18 +1505,25 @@ class PipelineGUI(tk.Tk):
             "max_workers": self.max_workers_var.get(),
             "coords": [v.get() for v in self.coords_vars],
             "coords_parallel": self.coords_parallel.get(),
+            "coords_dcd_selection": self.coords_dcd_selection.get(),
             "unwrap": [v.get() for v in self.unwrap_vars],
             "unwrap_opt": [v.get() for v in self.unwrap_opt],
             "unwrap_chunk": self.unwrap_chunk_var.get(),
             "unwrap_parallel": self.unwrap_parallel.get(),
+            "unwrap_dcd_selection": self.unwrap_dcd_selection.get(),
             "com": [v.get() for v in self.com_vars],
             "com_parallel": self.com_parallel.get(),
             "com_memmap": self.com_memmap.get(),
+            "com_dcd_selection": self.com_dcd_selection.get(),
             "sbatch": [v.get() for v in self.sbatch_vars],
             "output_folder": self.output_folder_var.get(),
             "output_full_path": getattr(self, 'output_full_path', None),
             "mainfile": self.mainfile_var.get(),
-            "submitfile": self.submitfile_var.get()
+            "submitfile": self.submitfile_var.get(),
+            "traj_file_size_mb": self.traj_file_size_mb.get(),
+            "traj_num_frames": self.traj_num_frames.get(),
+            "traj_num_atoms": self.traj_num_atoms.get(),
+            "available_memory_gb": self.available_memory_gb.get()
         }
         with open(CONFIG_PATH, "w") as f:
             json.dump(data, f)
@@ -1214,6 +1545,7 @@ class PipelineGUI(tk.Tk):
         for v,val in zip(self.coords_vars, data.get("coords",[])):
             v.set(val)
         self.coords_parallel.set(data.get("coords_parallel", True))
+        self.coords_dcd_selection.set(data.get("coords_dcd_selection", ""))
 
         for v,val in zip(self.unwrap_vars, data.get("unwrap",[])):
             v.set(val)
@@ -1221,11 +1553,13 @@ class PipelineGUI(tk.Tk):
             v.set(val)
         self.unwrap_chunk_var.set(data.get("unwrap_chunk", "auto"))
         self.unwrap_parallel.set(data.get("unwrap_parallel", True))
+        self.unwrap_dcd_selection.set(data.get("unwrap_dcd_selection", ""))
 
         for v,val in zip(self.com_vars, data.get("com",[])):
             v.set(val)
         self.com_parallel.set(data.get("com_parallel", True))
         self.com_memmap.set(data.get("com_memmap", False))
+        self.com_dcd_selection.set(data.get("com_dcd_selection", ""))
 
         for v,val in zip(self.sbatch_vars, data.get("sbatch",[])):
             v.set(val)
@@ -1234,6 +1568,12 @@ class PipelineGUI(tk.Tk):
         self.output_full_path = data.get("output_full_path", None)
         self.mainfile_var.set(data.get("mainfile",""))
         self.submitfile_var.set(data.get("submitfile",""))
+        
+        # Load trajectory characteristics
+        self.traj_file_size_mb.set(data.get("traj_file_size_mb", ""))
+        self.traj_num_frames.set(data.get("traj_num_frames", ""))
+        self.traj_num_atoms.set(data.get("traj_num_atoms", ""))
+        self.available_memory_gb.set(data.get("available_memory_gb", ""))
 
         # Note: Skip checkboxes are NOT loaded from config as requested
 
@@ -1531,6 +1871,10 @@ The script will submit all .sh files using sbatch commands."""
                 "Optimized MD Analysis Pipeline - Generated by GUI v2.0",
                 "This script uses the optimized pipeline functions with enhanced",
                 "performance, parallel processing, and robust error handling.",
+                "",
+                "NOTE: This script uses custom DCD selections. The backend functions",
+                "must support the 'dcd_indices' parameter instead of 'num_dcd'.",
+                "If using legacy functions, update them to handle dcd_indices parameter.",
                 '"""',
                 "",
                 "import sys",
@@ -1550,10 +1894,19 @@ The script will submit all .sh files using sbatch commands."""
             if not self.skip1.get():
                 in1,out1,psf,dcd,parts,resname,vmd = [v.get().strip() for v in self.coords_vars]
                 use_parallel = self.coords_parallel.get()
+                coords_dcd_selection = self.coords_dcd_selection.get().strip()
+                
+                # Parse DCD selection
+                try:
+                    coords_dcd_list = self.parse_dcd_selection(coords_dcd_selection, nd)
+                except ValueError as e:
+                    raise ValueError(f"Invalid DCD selection for coordinates extraction: {e}")
                 
                 lines.extend([
                     "    # Step 1: Coordinate Extraction (Optimized)",
                     "    print('\\nStep 1: Extracting coordinates from DCD files...')",
+                    f"    selected_dcds = {coords_dcd_list}",
+                    f"    print(f'Processing DCDs: {{selected_dcds}}')",
                     "    try:",
                     "        # Try importing compiled version first, fallback to Python version",
                     "        try:",
@@ -1571,17 +1924,18 @@ The script will submit all .sh files using sbatch commands."""
                     f"            OUTdir={repr(out1)},",
                     f"            psf={repr(psf)},",
                     f"            dcd={repr(dcd)},",
-                    f"            num_dcd={nd},",
+                    f"            dcd_indices=selected_dcds,",
                     f"            particles={repr(parts)},",
                     f"            resnam={repr(resname)},",
                     f"            vmd={repr(vmd)},",
                     f"            max_workers={max_workers if use_parallel else 1}",
                     "        )",
                     "        all_results['coordinates_extract'] = results_coords",
-                    f"        if results_coords['success'] < results_coords.get('total', {nd}):",
-                    f"            print(f'Warning: Only {{results_coords[\"success\"]}} out of {nd} coordinate files processed successfully')",
+                    f"        expected_files = len(selected_dcds)",
+                    f"        if results_coords['success'] < expected_files:",
+                    f"            print(f'Warning: Only {{results_coords[\"success\"]}} out of {{expected_files}} coordinate files processed successfully')",
                     "        else:",
-                    "            print('✓ All coordinate files processed successfully')",
+                    "            print('✓ All selected coordinate files processed successfully')",
                     "    except Exception as e:",
                     "        print(f'✗ Coordinate extraction failed: {e}')",
                     "        sys.exit(1)",
@@ -1595,12 +1949,21 @@ The script will submit all .sh files using sbatch commands."""
                 st = self.unwrap_opt[1].get().strip() or "1"
                 chunk_size = self.unwrap_chunk_var.get().strip()
                 use_parallel = self.unwrap_parallel.get()
+                unwrap_dcd_selection = self.unwrap_dcd_selection.get().strip()
+                
+                # Parse DCD selection
+                try:
+                    unwrap_dcd_list = self.parse_dcd_selection(unwrap_dcd_selection, nd)
+                except ValueError as e:
+                    raise ValueError(f"Invalid DCD selection for unwrap coordinates: {e}")
                 
                 chunk_param = "None" if chunk_size == "auto" else chunk_size
                 
                 lines.extend([
                     "    # Step 2: Unwrap Coordinates (Optimized)",
                     "    print('\\nStep 2: Unwrapping periodic boundary conditions...')",
+                    f"    selected_dcds = {unwrap_dcd_list}",
+                    f"    print(f'Processing DCDs: {{selected_dcds}}')",
                     "    try:",
                     "        # Try importing compiled version first, fallback to Python version",
                     "        try:",
@@ -1617,7 +1980,7 @@ The script will submit all .sh files using sbatch commands."""
                     f"            INdir={repr(in2)},",
                     f"            OUTdir={repr(out2)},",
                     f"            xsc={repr(xsc)},",
-                    f"            num_dcd={nd},",
+                    f"            dcd_indices=selected_dcds,",
                     f"            num_atoms=int({na}),",
                     f"            interval={iv},",
                     f"            stride={st},",
@@ -1625,10 +1988,11 @@ The script will submit all .sh files using sbatch commands."""
                     f"            chunk_size={chunk_param}",
                     "        )",
                     "        all_results['unwrap_coords'] = results_unwrap",
-                    f"        if results_unwrap['success'] < {nd}:",
-                    f"            print(f'Warning: Only {{results_unwrap[\"success\"]}} out of {nd} unwrap files processed successfully')",
+                    f"        expected_files = len(selected_dcds)",
+                    f"        if results_unwrap['success'] < expected_files:",
+                    f"            print(f'Warning: Only {{results_unwrap[\"success\"]}} out of {{expected_files}} unwrap files processed successfully')",
                     "        else:",
-                    "            print('✓ All coordinate files unwrapped successfully')",
+                    "            print('✓ All selected coordinate files unwrapped successfully')",
                     "    except Exception as e:",
                     "        print(f'✗ Coordinate unwrapping failed: {e}')",
                     "        sys.exit(1)",
@@ -1642,10 +2006,19 @@ The script will submit all .sh files using sbatch commands."""
                 use_parallel = self.com_parallel.get()
                 use_memmap = self.com_memmap.get()
                 num_particles = int(self.num_particles_var.get())
+                com_dcd_selection = self.com_dcd_selection.get().strip()
+                
+                # Parse DCD selection
+                try:
+                    com_dcd_list = self.parse_dcd_selection(com_dcd_selection, nd)
+                except ValueError as e:
+                    raise ValueError(f"Invalid DCD selection for COM calculation: {e}")
                 
                 lines.extend([
                     "    # Step 3: Center-of-Mass Calculation (Optimized)",
                     "    print('\\nStep 3: Computing center-of-mass coordinates...')",
+                    f"    selected_dcds = {com_dcd_list}",
+                    f"    print(f'Processing DCDs: {{selected_dcds}}')",
                     "    try:",
                     "        # Try importing compiled version first, fallback to Python version",
                     "        try:",
@@ -1661,7 +2034,7 @@ The script will submit all .sh files using sbatch commands."""
                     f"            baseDir={repr(bd)},",
                     f"            INdir={repr(in3)},",
                     f"            OUTdir={repr(out3)},",
-                    f"            num_dcd={nd},",
+                    f"            dcd_indices=selected_dcds,",
                     f"            prtcl_num={num_particles},",
                     f"            prtcl_atoms=int({ap}),",
                     f"            particl_mass={masses},",
@@ -1669,10 +2042,11 @@ The script will submit all .sh files using sbatch commands."""
                     f"            use_memmap={use_memmap}",
                     "        )",
                     "        all_results['COM_calc'] = results_com",
-                    f"        if results_com['success'] < {nd}:",
-                    f"            print(f'Warning: Only {{results_com[\"success\"]}} out of {nd} COM files processed successfully')",
+                    f"        expected_files = len(selected_dcds)",
+                    f"        if results_com['success'] < expected_files:",
+                    f"            print(f'Warning: Only {{results_com[\"success\"]}} out of {{expected_files}} COM files processed successfully')",
                     "        else:",
-                    "            print('✓ All COM calculations completed successfully')",
+                    "            print('✓ All selected COM calculations completed successfully')",
                     "    except Exception as e:",
                     "        print(f'✗ COM calculation failed: {e}')",
                     "        sys.exit(1)",
@@ -2090,6 +2464,186 @@ StartupWMClass=MD-Analysis-Pipeline
             # If desktop file creation fails, continue without it
             pass
     
+    def calculate_optimal_settings(self):
+        """Calculate optimal processing settings based on trajectory characteristics"""
+        try:
+            # Get trajectory characteristics
+            file_size_mb = float(self.traj_file_size_mb.get().strip()) if self.traj_file_size_mb.get().strip() else 0
+            num_frames = int(self.traj_num_frames.get().strip()) if self.traj_num_frames.get().strip() else 0
+            num_atoms = int(self.traj_num_atoms.get().strip()) if self.traj_num_atoms.get().strip() else 0
+            available_memory_gb = float(self.available_memory_gb.get().strip()) if self.available_memory_gb.get().strip() else 0
+            
+            if not all([file_size_mb, num_frames, num_atoms, available_memory_gb]):
+                messagebox.showwarning("Missing Information", 
+                                     "Please fill in all trajectory characteristics fields for optimal calculations.")
+                return
+            
+            # Calculate memory requirements and optimal settings
+            recommendations = self._calculate_memory_optimization(file_size_mb, num_frames, num_atoms, available_memory_gb)
+            
+            # Update GUI with recommendations
+            self._apply_recommendations(recommendations)
+            
+            # Display results
+            results_text = f"✓ Optimal settings calculated! Chunk: {recommendations['chunk_size']}, Workers: {recommendations['max_workers']}, SLURM Mem: {recommendations['slurm_memory_gb']}GB"
+            self.optimization_results_label.config(text=results_text, fg='#27ae60')
+            
+            # Show detailed popup
+            self._show_optimization_details(recommendations)
+            
+        except ValueError as e:
+            messagebox.showerror("Invalid Input", f"Please enter valid numbers for all fields.\nError: {e}")
+        except Exception as e:
+            messagebox.showerror("Calculation Error", f"Error calculating optimal settings:\n{e}")
+    
+    def _calculate_memory_optimization(self, file_size_mb, num_frames, num_atoms, available_memory_gb):
+        """Calculate optimal memory settings based on trajectory characteristics"""
+        
+        # Memory estimation constants (empirically determined)
+        BYTES_PER_COORD = 8  # Double precision float
+        COORDS_PER_ATOM = 3  # x, y, z
+        VMD_OVERHEAD_FACTOR = 2.5  # VMD memory overhead
+        PYTHON_OVERHEAD_FACTOR = 1.8  # Python object overhead
+        SAFETY_FACTOR = 0.75  # Use 75% of available memory for safety
+        BASE_MEMORY_GB = 2  # Base system overhead
+        
+        # Calculate memory per frame (in MB)
+        memory_per_frame_mb = (num_atoms * COORDS_PER_ATOM * BYTES_PER_COORD / (1024**2)) * PYTHON_OVERHEAD_FACTOR
+        
+        # Calculate VMD memory usage per file (approximation)
+        vmd_memory_per_file_mb = file_size_mb * VMD_OVERHEAD_FACTOR
+        
+        # Available memory for processing (in MB)
+        available_memory_mb = (available_memory_gb - BASE_MEMORY_GB) * 1024 * SAFETY_FACTOR
+        
+        # Calculate optimal chunk size for unwrapping
+        # Memory for chunk = chunk_size * memory_per_frame * safety_factor
+        max_chunk_memory_mb = available_memory_mb * 0.4  # Use 40% of available memory for chunks
+        optimal_chunk_size = int(max_chunk_memory_mb / memory_per_frame_mb)
+        optimal_chunk_size = max(1000, min(optimal_chunk_size, num_frames))  # Clamp between 1000 and num_frames
+        
+        # Calculate optimal number of workers
+        # Each worker needs memory for: chunk processing + overhead
+        memory_per_worker_mb = optimal_chunk_size * memory_per_frame_mb * 1.5  # 1.5x for processing overhead
+        max_workers_by_memory = int(available_memory_mb / memory_per_worker_mb)
+        max_workers_by_cpu = mp.cpu_count()
+        
+        # Choose conservative worker count
+        optimal_workers = max(1, min(max_workers_by_memory, max_workers_by_cpu, 4))  # Cap at 4 for stability
+        
+        # Calculate recommended SLURM memory (with buffer)
+        total_estimated_memory_gb = ((optimal_workers * memory_per_worker_mb + vmd_memory_per_file_mb) / 1024) + BASE_MEMORY_GB
+        recommended_slurm_memory = int(total_estimated_memory_gb * 1.3)  # 30% buffer
+        
+        # Calculate processing time estimates
+        estimated_vmd_time_per_file = file_size_mb / 100  # Rough estimate: 100MB per minute
+        estimated_unwrap_time_per_file = (num_frames * num_atoms) / (500000 * optimal_workers)  # Rough estimate
+        estimated_com_time_per_file = num_frames / (50000 * optimal_workers)  # Rough estimate
+        total_time_per_file = estimated_vmd_time_per_file + estimated_unwrap_time_per_file + estimated_com_time_per_file
+        
+        # Determine recommended DCD batch size
+        if total_time_per_file > 2:  # If > 2 hours per file
+            recommended_batch_size = 2
+        elif total_time_per_file > 1:  # If > 1 hour per file
+            recommended_batch_size = 3
+        elif available_memory_gb < 100:  # Low memory systems
+            recommended_batch_size = 4
+        else:
+            recommended_batch_size = 6
+        
+        return {
+            'chunk_size': optimal_chunk_size,
+            'max_workers': optimal_workers,
+            'slurm_memory_gb': recommended_slurm_memory,
+            'recommended_batch_size': recommended_batch_size,
+            'memory_per_frame_mb': memory_per_frame_mb,
+            'memory_per_worker_mb': memory_per_worker_mb,
+            'estimated_time_per_file_hours': total_time_per_file,
+            'vmd_memory_mb': vmd_memory_per_file_mb,
+            'total_estimated_memory_gb': total_estimated_memory_gb
+        }
+    
+    def _apply_recommendations(self, recommendations):
+        """Apply calculated recommendations to GUI fields"""
+        # Update max workers
+        self.max_workers_var.set(recommendations['max_workers'])
+        
+        # Update chunk size
+        self.unwrap_chunk_var.set(str(recommendations['chunk_size']))
+        
+        # Update SLURM memory if SLURM fields exist
+        if hasattr(self, 'sbatch_vars') and len(self.sbatch_vars) > 5:
+            self.sbatch_vars[5].set(str(recommendations['slurm_memory_gb']))  # Memory field
+        
+        # Update CPU count in SLURM to match workers
+        if hasattr(self, 'sbatch_vars') and len(self.sbatch_vars) > 3:
+            self.sbatch_vars[3].set(str(recommendations['max_workers']))  # CPUs field
+    
+    def _show_optimization_details(self, recommendations):
+        """Show detailed optimization results in a popup window"""
+        details_window = tk.Toplevel(self)
+        details_window.title("🧠 Optimization Results")
+        details_window.geometry("600x500")
+        details_window.configure(bg='#f0f0f0')
+        details_window.transient(self)
+        details_window.grab_set()
+        
+        # Header
+        header_frame = tk.Frame(details_window, bg='#3498db')
+        header_frame.pack(fill="x")
+        tk.Label(header_frame, text="🧠 Intelligent Optimization Results", 
+                font=("Arial", 14, "bold"), fg='white', bg='#3498db', pady=10).pack()
+        
+        # Content frame with scrolling
+        content_frame = tk.Frame(details_window, bg='#f0f0f0')
+        content_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Results text
+        results_text = f"""📊 MEMORY ANALYSIS:
+Memory per frame: {recommendations['memory_per_frame_mb']:.1f} MB
+Memory per worker: {recommendations['memory_per_worker_mb']:.1f} MB
+VMD memory estimate: {recommendations['vmd_memory_mb']:.1f} MB
+Total estimated memory: {recommendations['total_estimated_memory_gb']:.1f} GB
+
+⚙️ RECOMMENDED SETTINGS:
+Optimal chunk size: {recommendations['chunk_size']:,} frames
+Max workers: {recommendations['max_workers']}
+SLURM memory request: {recommendations['slurm_memory_gb']} GB
+
+⏱️ TIME ESTIMATES:
+Estimated time per DCD: {recommendations['estimated_time_per_file_hours']:.1f} hours
+Recommended batch size: {recommendations['recommended_batch_size']} DCDs at once
+
+💡 OPTIMIZATION TIPS:
+• Process {recommendations['recommended_batch_size']} DCDs at a time using DCD Selection
+• Monitor memory usage during first run
+• Increase batch size if memory usage is low
+• Decrease batch size if you encounter OOM errors
+• Use memory mapping for Step 3 (COM calculation)
+
+🎯 APPLIED TO GUI:
+✓ Max Workers updated to {recommendations['max_workers']}
+✓ Chunk Size updated to {recommendations['chunk_size']:,}
+✓ SLURM Memory updated to {recommendations['slurm_memory_gb']} GB
+✓ SLURM CPUs updated to {recommendations['max_workers']}"""
+
+        text_widget = tk.Text(content_frame, wrap=tk.WORD, font=("Consolas", 10), 
+                             bg='white', fg='#2c3e50', relief='sunken', borderwidth=2)
+        text_widget.pack(fill="both", expand=True)
+        text_widget.insert("1.0", results_text)
+        text_widget.config(state='disabled')
+        
+        # Close button
+        tk.Button(details_window, text="Close", command=details_window.destroy,
+                 bg="#e74c3c", fg="white", font=("Arial", 12, "bold"), 
+                 padx=20, pady=5).pack(pady=10)
+        
+        # Center on parent
+        details_window.update_idletasks()
+        x = self.winfo_x() + (self.winfo_width() - details_window.winfo_width()) // 2
+        y = self.winfo_y() + (self.winfo_height() - details_window.winfo_height()) // 2
+        details_window.geometry(f"+{x}+{y}")
+
     def on_closing(self):
         """Clean up when window is closed."""
         try:

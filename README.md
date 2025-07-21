@@ -1,4 +1,4 @@
-# a2_MSD Pipeline App - Optimized Version v2.1
+# a2_MSD Pipeline App - Optimized Version v2.2
 
 A comprehensive **molecular dynamics analysis pipeline** for generating **Mean‑Square‑Displacement (MSD)**, **non‑Gaussian parameters**, and **dipole moment** analyses from NAMD DCD trajectories—now with **3-10x performance improvements**, modular workflow, and enhanced reliability.
 
@@ -7,8 +7,11 @@ A comprehensive **molecular dynamics analysis pipeline** for generating **Mean�
 - **α_xz(t)**: Directional correlation parameter α_xz(t) = ⟨Δx²·Δz²⟩/(⟨Δx²⟩·⟨Δz²⟩) - 1 for anisotropic analysis
 - **Dipole Moments**: Molecular dipole moment calculation with vectorized processing and parallel optimization
 
-## 🚀 **New in Optimized Version v2.1**
+## 🚀 **New in Optimized Version v2.2**
 
+- **🧠 Intelligent Optimization**: Auto-calculates optimal settings based on trajectory characteristics
+- **🎯 Smart Memory Management**: Prevents OOM errors with trajectory-aware chunk sizing
+- **📊 Custom DCD Selection**: Process specific DCD ranges (e.g., "4-10" or "4-6,8-10")
 - **🖥️ Windows Support**: Now available for Linux, macOS (Intel & ARM), and Windows platforms
 - **🎯 Modular Interface**: Separate windows for data preprocessing and calculations
 - **⚡ Dipole Calculations**: New optimized dipole moment analysis with parallel processing
@@ -80,7 +83,7 @@ $ ./alpha2_MSD_pip_mac_x86_64
 
 ---
 
-## 🎯 **Enhanced Modular GUI & Workflow**
+## 🎯 **GUI Example**
 
 ![An example](example.png)
 
@@ -88,11 +91,17 @@ $ ./alpha2_MSD_pip_mac_x86_64
 The main window focuses on **Steps 1-3** (data preparation):
 
 1. **Common Parameters** – Base directory, **number of DCDs**, **number of particles**, **max workers** (auto-detected)
-2. **Step 1: Coordinate Extraction** – Extract raw coordinates from DCD files using VMD
-3. **Step 2: Unwrap Coordinates** – Remove periodic boundary condition artifacts  
-4. **Step 3: Center-of-Mass Calculation** – Compute molecular centers of mass
-5. **SLURM Configuration** – Partition, wall‑time, CPUs (auto-populated), email
-6. **Generate Pipeline** – Create optimized preprocessing scripts
+2. **🧠 Trajectory Characteristics** – Input file size, frames, atoms, and memory for intelligent optimization
+   - **Auto-Calculate Settings** – Click "🧠 Calculate Optimal Settings" for automatic parameter optimization
+   - **Smart Recommendations** – Prevents OOM errors and optimizes chunk sizes based on your data
+3. **Step 1: Coordinate Extraction** – Extract raw coordinates from DCD files using VMD
+   - **Custom DCD Selection** – Process specific ranges (e.g., "4-10" or "4-6,8-10") 
+4. **Step 2: Unwrap Coordinates** – Remove periodic boundary condition artifacts
+   - **Intelligent Chunk Sizing** – Auto-optimized based on trajectory characteristics
+5. **Step 3: Center-of-Mass Calculation** – Compute molecular centers of mass
+   - **Memory-Aware Processing** – Smart memory mapping and worker allocation
+6. **SLURM Configuration** – Partition, wall‑time, CPUs (auto-populated), email
+7. **Generate Pipeline** – Create optimized preprocessing scripts
 
 ### **Calculations Window: Analysis Modules**
 Click **"Open Analysis Calculations →"** to access the dedicated calculations interface:
@@ -108,6 +117,8 @@ Click **"Open Analysis Calculations →"** to access the dedicated calculations 
 - **Optimization Settings** – Parallel processing, memory management, validation
 
 ### **Workflow Benefits**
+- **🧠 Intelligent Optimization**: Auto-calculates optimal settings to prevent memory issues and timeouts
+- **📊 Custom DCD Processing**: Select specific DCDs to process in manageable batches
 - **🎯 Focused Interface**: Separate concerns for preprocessing vs. analysis
 - **📊 Centralized Parameters**: Set once, use everywhere (num_dcds, num_particles)
 - **🔧 Modular Execution**: Run preprocessing first, then choose specific analyses
@@ -171,6 +182,62 @@ $ sbatch dipole_calculation.sh
 - **Modular**: Run preprocessing once, then any combination of analyses
 - **Portable**: Simply copy the entire folder - no additional setup required
 - **Flexible**: Execute locally or submit to any SLURM-based supercomputer
+
+---
+
+## 🧠 **Intelligent Optimization System**
+
+### **Trajectory-Aware Auto-Optimization**
+The new intelligent optimization system analyzes your trajectory characteristics to automatically calculate optimal processing parameters, preventing memory exhaustion and timeouts.
+
+#### **Input Requirements:**
+```
+Single DCD file size (MB):    e.g., 500 MB
+Frames per DCD:              e.g., 25,000 frames  
+Total atoms in system:       e.g., 3,000 atoms
+Available memory (GB):       e.g., 240 GB
+```
+
+#### **Auto-Calculated Optimizations:**
+- **🎯 Optimal Chunk Size**: Memory-efficient frame processing to prevent OOM errors
+- **⚙️ Worker Count**: Balanced parallel processing based on memory constraints
+- **💾 SLURM Memory**: Precise memory requests with safety buffers
+- **📊 Batch Recommendations**: Suggested DCD processing batch sizes
+- **⏱️ Time Estimates**: Predicted processing times per DCD file
+
+#### **Smart DCD Selection:**
+Process trajectories in manageable batches using flexible selection syntax:
+- **Single DCD**: `"5"` → Process only DCD 5
+- **Range**: `"4-10"` → Process DCDs 4 through 10
+- **Multiple Ranges**: `"4-6,8-10"` → Process DCDs 4-6 and 8-10
+- **Mixed Selection**: `"0-2,5,7-9"` → Process DCDs 0-2, 5, and 7-9
+
+#### **Memory Analysis Example:**
+```
+📊 MEMORY ANALYSIS:
+Memory per frame: 0.1 MB
+Memory per worker: 3,750.0 MB  
+VMD memory estimate: 1,250.0 MB
+Total estimated memory: 18.5 GB
+
+⚙️ RECOMMENDED SETTINGS:
+Optimal chunk size: 25,000 frames
+Max workers: 4
+SLURM memory request: 27 GB
+
+⏱️ TIME ESTIMATES:
+Estimated time per DCD: 42.6 hours
+Recommended batch size: 2 DCDs at once
+```
+
+#### **How to Use:**
+1. **Fill in trajectory characteristics** in the GUI
+2. **Click "🧠 Calculate Optimal Settings"**
+3. **Review detailed analysis** in the popup window
+4. **Use recommended batch size** with DCD Selection feature
+5. **Generate optimized scripts** with auto-applied settings
+
+**Result**: Eliminates guesswork and provides scientifically calculated parameters for reliable, efficient processing.
 
 ---
 
@@ -246,7 +313,26 @@ $ python3 performance_benchmark.py
     Centralized configuration shared across all calculations:<br>
     &emsp;• <code>Number of DCDs</code> ← total trajectory files to process<br>
     &emsp;• <code>Number of Particles</code> ← molecules per trajectory file<br>
-    &emsp;• <code>Max Workers</code> ← CPU cores for parallel processing (auto-detected)
+    &emsp;• <code>Max Workers</code> ← CPU cores for parallel processing (auto-detected/optimized)
+  </dd>
+
+  <dt><strong>🧠 Intelligent Optimization</strong></dt>
+  <dd>
+    Auto-calculate optimal settings based on trajectory characteristics:<br>
+    &emsp;• <code>File Size (MB)</code> ← single DCD file size for memory estimation<br>
+    &emsp;• <code>Frames per DCD</code> ← frames in each trajectory file<br>
+    &emsp;• <code>Total Atoms</code> ← atoms in the molecular system<br>
+    &emsp;• <code>Available Memory (GB)</code> ← system memory for optimization<br>
+    &emsp;• <code>🧠 Calculate Optimal Settings</code> ← auto-optimize all parameters
+  </dd>
+
+  <dt><strong>📊 Custom DCD Selection</strong></dt>
+  <dd>
+    Process specific DCD files in manageable batches:<br>
+    &emsp;• <code>DCD Selection: "4-10"</code> ← process DCDs 4 through 10<br>
+    &emsp;• <code>DCD Selection: "4-6,8-10"</code> ← process DCDs 4-6 and 8-10<br>
+    &emsp;• <code>DCD Selection: "0-2,5,7-9"</code> ← mixed ranges and single files<br>
+    &emsp;• <em>Leave empty to process all DCDs</em>
   </dd>
 
   <dt><strong>Parallel Workers</strong></dt>
@@ -333,11 +419,20 @@ The optimized GUI generates production-ready scripts with:
 9. **Q: How do I run multiple analyses?**  
    **A:** Run preprocessing once in the main window, then generate and execute multiple analysis scripts from the calculations window as needed.
 
+10. **Q: How does the intelligent optimization work?**  
+    **A:** Enter your trajectory characteristics (file size, frames, atoms, memory) and click "🧠 Calculate Optimal Settings". The system automatically calculates optimal chunk sizes, worker counts, and memory requirements to prevent OOM errors and timeouts.
+
+11. **Q: What is DCD Selection and how do I use it?**  
+    **A:** DCD Selection lets you process specific trajectory files instead of all at once. Use formats like "4-10" for a range, "4-6,8-10" for multiple ranges, or "0-2,5,7-9" for mixed selections. This helps manage memory and processing time.
+
+12. **Q: My pipeline keeps running out of memory. How can I fix this?**  
+    **A:** Use the intelligent optimization system! Fill in your trajectory characteristics and let the system calculate optimal settings. Also try processing fewer DCDs at once using DCD Selection (e.g., "0-2" instead of all 10 DCDs).
+
 ---
 
 ## 🏆 **Optimization Summary**
 
-| Component | Original | Optimized v2.1 | Improvement |
+| Component | Original | Optimized v2.2 | Improvement |
 |-----------|----------|----------------|-------------|
 | **coordinates_extract** | Serial VMD processing | Parallel VMD execution | **3-5x + Enhanced Reliability** |
 | **unwrap_coords** | Memory intensive | Chunked processing | **3-5x + Memory Efficient** |
@@ -345,9 +440,11 @@ The optimized GUI generates production-ready scripts with:
 | **alpha2_MSD** | Unstable numerics | Enhanced stability | **Reliable + Faster** |
 | **alpha_xz** | Basic implementation | Optimized directional analysis | **Enhanced + Efficient** |
 | **dipole_functions** | **NEW** | Vectorized parallel processing | **New + 5-10x faster** |
+| **🧠 Intelligent Optimization** | **NEW** | Auto-calculates optimal settings | **Prevents OOM + Optimizes Performance** |
+| **📊 DCD Selection** | **NEW** | Custom trajectory batch processing | **Memory Management + Flexibility** |
 | **GUI Workflow** | Single window | Modular interface | **Better UX + Organization** |
-| **Parameter Management** | Distributed inputs | Centralized common parameters | **Consistent + Simplified** |
-| **Overall Pipeline** | Sequential processing | Parallel + modular + multi-analysis | **3-10x end-to-end + Flexibility** |
+| **Parameter Management** | Distributed inputs | Centralized + intelligent parameters | **Consistent + Auto-Optimized** |
+| **Overall Pipeline** | Sequential processing | Parallel + modular + intelligent + multi-analysis | **3-10x end-to-end + Smart + Flexible** |
 
 ---
 
