@@ -90,14 +90,15 @@ $ ./alpha2_MSD_pip_mac_x86_64
 ### **Main Window: Data Preprocessing Pipeline**
 The main window focuses on **Steps 1-3** (data preparation):
 
-1. **Common Parameters** – Base directory, **number of DCDs**, **number of particles**, **max workers** (auto-detected)
-2. **🧠 Trajectory Characteristics** – Input file size, frames, atoms, and memory for intelligent optimization
+1. **Common Parameters** – Base directory, **number of DCDs**, **number of particles**
+2. **🧠 Trajectory Characteristics** – Input file size, frames, atoms, memory, and worker count for intelligent optimization
+   - **Max Workers** – CPU cores for parallel processing (used in chunk size optimization)
    - **Auto-Calculate Settings** – Click "🧠 Calculate Optimal Settings" for automatic parameter optimization
    - **Smart Recommendations** – Prevents OOM errors and optimizes chunk sizes based on your data
 3. **Step 1: Coordinate Extraction** – Extract raw coordinates from DCD files using VMD
    - **Custom DCD Selection** – Process specific ranges (e.g., "4-10" or "4-6,8-10") 
 4. **Step 2: Unwrap Coordinates** – Remove periodic boundary condition artifacts
-   - **Intelligent Chunk Sizing** – Auto-optimized based on trajectory characteristics
+   - **Intelligent Chunk Sizing** – Auto-optimized based on trajectory characteristics and worker count
 5. **Step 3: Center-of-Mass Calculation** – Compute molecular centers of mass
    - **Memory-Aware Processing** – Smart memory mapping and worker allocation
 6. **SLURM Configuration** – Partition, wall‑time, CPUs (auto-populated), email
@@ -192,18 +193,22 @@ The new intelligent optimization system analyzes your trajectory characteristics
 
 #### **Input Requirements:**
 ```
-Single DCD file size (MB):    e.g., 500 MB
-Frames per DCD:              e.g., 25,000 frames  
-Total atoms in system:       e.g., 3,000 atoms
+Single DCD file size (MB):    e.g., 24,000 MB (24 GB)
+Frames per DCD:              e.g., 200,000 frames  
+Atoms being extracted:       e.g., 3,000 atoms (1000 molecules × 3 atoms each)
 Available memory (GB):       e.g., 240 GB
+Max Workers:                 e.g., 4 cores (used for chunk size optimization)
+Coordinate precision:        single (50% smaller files) or double (full precision)
 ```
 
 #### **Auto-Calculated Optimizations:**
 - **🎯 Optimal Chunk Size**: Memory-efficient frame processing to prevent OOM errors
 - **⚙️ Worker Count**: Balanced parallel processing based on memory constraints
-- **💾 SLURM Memory**: Precise memory requests with safety buffers
+- **💾 SLURM Memory**: Precise memory requests with safety buffers for all pipeline steps
 - **📊 Batch Recommendations**: Suggested DCD processing batch sizes
 - **⏱️ Time Estimates**: Predicted processing times per DCD file
+- **💾 File Size Prediction**: Accurate output file size estimates with precision control
+- **🔧 Precision Optimization**: Single precision reduces file sizes by ~50% with minimal accuracy loss
 
 #### **Smart DCD Selection:**
 Process trajectories in manageable batches using flexible selection syntax:
@@ -215,23 +220,30 @@ Process trajectories in manageable batches using flexible selection syntax:
 #### **Memory Analysis Example:**
 ```
 📊 MEMORY ANALYSIS:
-Memory per frame: 0.1 MB
-Memory per worker: 3,750.0 MB  
-VMD memory estimate: 1,250.0 MB
-Total estimated memory: 18.5 GB
+Expected output file size: 42.0 GB (double precision)
+Memory per frame: 0.39 MB
+Memory per worker: 63,747 MB
+VMD memory estimate: 61,440 MB
+
+📈 PEAK MEMORY BY STEP:
+Step 1 (VMD extraction): 102.0 GB
+Step 2 (Unwrapping): 154.0 GB  
+Step 3 (COM calculation): 33.6 GB
+Total estimated: 157.0 GB
 
 ⚙️ RECOMMENDED SETTINGS:
-Optimal chunk size: 25,000 frames
-Max workers: 4
-SLURM memory request: 27 GB
+Optimal chunk size: 164,583 frames
+Max workers: 1
+SLURM memory request: 219 GB
+Coordinate precision: single (21.0 GB, ~50% smaller files)
 
 ⏱️ TIME ESTIMATES:
-Estimated time per DCD: 42.6 hours
+Estimated time per DCD: 1014.0 hours
 Recommended batch size: 2 DCDs at once
 ```
 
 #### **How to Use:**
-1. **Fill in trajectory characteristics** in the GUI
+1. **Fill in trajectory characteristics** in the GUI (including desired worker count)
 2. **Click "🧠 Calculate Optimal Settings"**
 3. **Review detailed analysis** in the popup window
 4. **Use recommended batch size** with DCD Selection feature
@@ -312,8 +324,7 @@ $ python3 performance_benchmark.py
   <dd>
     Centralized configuration shared across all calculations:<br>
     &emsp;• <code>Number of DCDs</code> ← total trajectory files to process<br>
-    &emsp;• <code>Number of Particles</code> ← molecules per trajectory file<br>
-    &emsp;• <code>Max Workers</code> ← CPU cores for parallel processing (auto-detected/optimized)
+    &emsp;• <code>Number of Particles</code> ← molecules per trajectory file
   </dd>
 
   <dt><strong>🧠 Intelligent Optimization</strong></dt>
@@ -321,9 +332,11 @@ $ python3 performance_benchmark.py
     Auto-calculate optimal settings based on trajectory characteristics:<br>
     &emsp;• <code>File Size (MB)</code> ← single DCD file size for memory estimation<br>
     &emsp;• <code>Frames per DCD</code> ← frames in each trajectory file<br>
-    &emsp;• <code>Total Atoms</code> ← atoms in the molecular system<br>
+    &emsp;• <code>Atoms being extracted</code> ← atoms extracted in Step 1 (subset of total system)<br>
+    &emsp;• <code>Coordinate precision</code> ← single (50% smaller files) or double (full precision)<br>
     &emsp;• <code>Available Memory (GB)</code> ← system memory for optimization<br>
-    &emsp;• <code>🧠 Calculate Optimal Settings</code> ← auto-optimize all parameters
+    &emsp;• <code>Max Workers</code> ← CPU cores for parallel processing (affects chunk size calculation)<br>
+    &emsp;• <code>🧠 Calculate Optimal Settings</code> ← auto-optimize chunk size based on all parameters
   </dd>
 
   <dt><strong>📊 Custom DCD Selection</strong></dt>
@@ -335,14 +348,13 @@ $ python3 performance_benchmark.py
     &emsp;• <em>Leave empty to process all DCDs</em>
   </dd>
 
-  <dt><strong>Parallel Workers</strong></dt>
-  <dd>Auto-detected based on CPU cores. Adjust in Common Parameters for optimal performance across all pipeline steps.</dd>
-
-  <dt><strong>Chunk Processing</strong></dt>
+  <dt><strong>Chunk Processing & Workers</strong></dt>
   <dd>
-    Automatically manages memory for large trajectories:<br>
-    &emsp;• <code>Chunk Size: auto</code> ← automatically optimizes chunk size<br>
-    &emsp;• <code>Chunk Size: 1000</code> ← process 1000 frames at a time
+    Optimized memory management for large trajectories (configured in Step 2):<br>
+    &emsp;• <code>Max Workers</code> ← CPU cores for parallel processing (affects memory usage)<br>
+    &emsp;• <code>Chunk Size: auto</code> ← automatically optimizes chunk size based on workers and memory<br>
+    &emsp;• <code>Chunk Size: 5000</code> ← process 5000 frames at a time<br>
+    &emsp;• <em>Chunk size is now optimized based on your worker count for best memory efficiency</em>
   </dd>
 
   <dt><strong>Dipole Calculations</strong></dt>

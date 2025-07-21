@@ -878,6 +878,10 @@ class PipelineGUI(tk.Tk):
         self.traj_num_frames = tk.StringVar(value="")
         self.traj_num_atoms = tk.StringVar(value="")
         self.available_memory_gb = tk.StringVar(value="")
+        self.coord_precision = tk.StringVar(value="single")
+        
+        # Initialize max workers (moved to chunk size section)
+        self.max_workers_var = tk.IntVar(value=min(4, mp.cpu_count()))
 
         # Bind mouse wheel to canvas (Windows)
         self.canvas.bind("<MouseWheel>", self._on_mousewheel)
@@ -938,15 +942,7 @@ class PipelineGUI(tk.Tk):
         particles_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(particles_entry, "Total number of molecules/particles in each trajectory file")
 
-        # Global parallel processing settings
-        tk.Label(common, text="Max Workers:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=3, column=0, sticky="e", padx=5, pady=5)
-        self.max_workers_var = tk.IntVar(value=min(4, mp.cpu_count()))
-        workers_entry = tk.Entry(common, textvariable=self.max_workers_var, width=15, font=("Arial", 10),
-                                relief='solid', borderwidth=1)
-        workers_entry.grid(row=3, column=1, sticky="w", padx=5, pady=5)
-        create_tooltip(workers_entry, "Number of CPU cores to use for parallel processing. Higher values = faster computation but more memory usage")
-        tk.Label(common, text=f"(auto-detected: {mp.cpu_count()} cores)", 
-                font=("Arial", 9), bg='#f0f0f0', fg='#7f8c8d').grid(row=3, column=2, sticky="w", padx=5)
+
 
         # --- Trajectory Characteristics for Intelligent Optimization ---
         traj_info = tk.LabelFrame(self.scrollable_frame, text="Trajectory Characteristics (for Smart Optimization)", 
@@ -967,18 +963,34 @@ class PipelineGUI(tk.Tk):
         frames_entry.grid(row=0, column=3, sticky="w", padx=5, pady=5)
         create_tooltip(frames_entry, "Number of frames in each DCD file (e.g., 25000). Used to calculate memory per frame.")
 
-        # Second row - atoms and available memory
-        tk.Label(traj_info, text="Total atoms in system:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=0, sticky="e", padx=5, pady=5)
-        atoms_entry = tk.Entry(traj_info, textvariable=self.traj_num_atoms, width=15, font=("Arial", 10),
-                              relief='solid', borderwidth=1)
-        atoms_entry.grid(row=1, column=1, sticky="w", padx=5, pady=5)
-        create_tooltip(atoms_entry, "Total number of atoms in the system (e.g., 3000). Used to estimate memory per frame.")
+        # Second row - atoms and precision
+        tk.Label(traj_info, text="Atoms being extracted:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=0, sticky="e", padx=5, pady=5)
+        atoms_extracted_entry = tk.Entry(traj_info, textvariable=self.traj_num_atoms, width=15, font=("Arial", 10),
+                                        relief='solid', borderwidth=1)
+        atoms_extracted_entry.grid(row=1, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(atoms_extracted_entry, "Number of atoms being extracted in Step 1 (e.g., 3000 for 1000 molecules × 3 atoms each). Used to calculate actual output file sizes.")
 
-        tk.Label(traj_info, text="Available memory (GB):", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=2, sticky="e", padx=5, pady=5)
+        tk.Label(traj_info, text="Coordinate precision:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=2, sticky="e", padx=5, pady=5)
+        self.coord_precision = tk.StringVar(value="single")
+        precision_combo = ttk.Combobox(traj_info, textvariable=self.coord_precision, width=12, font=("Arial", 10),
+                                      values=["single", "double"], state="readonly")
+        precision_combo.grid(row=1, column=3, sticky="w", padx=5, pady=5)
+        create_tooltip(precision_combo, "Coordinate precision: 'single' (4 bytes, ~50% smaller files) or 'double' (8 bytes, full precision)")
+
+        # Third row - available memory and max workers
+        tk.Label(traj_info, text="Available memory (GB):", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=2, column=0, sticky="e", padx=5, pady=5)
         memory_entry = tk.Entry(traj_info, textvariable=self.available_memory_gb, width=15, font=("Arial", 10),
                                relief='solid', borderwidth=1)
-        memory_entry.grid(row=1, column=3, sticky="w", padx=5, pady=5)
+        memory_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(memory_entry, "Available system memory in GB (e.g., 240). Used to optimize chunk sizes and worker counts.")
+
+        tk.Label(traj_info, text="Max Workers:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=2, column=2, sticky="e", padx=5, pady=5)
+        workers_entry = tk.Entry(traj_info, textvariable=self.max_workers_var, width=15, font=("Arial", 10),
+                                relief='solid', borderwidth=1)
+        workers_entry.grid(row=2, column=3, sticky="w", padx=5, pady=5)
+        create_tooltip(workers_entry, "Number of CPU cores for parallel processing. Used in chunk size optimization: more workers = faster but smaller chunk sizes.")
+        tk.Label(traj_info, text=f"(auto: {mp.cpu_count()})", 
+                font=("Arial", 9), bg='#f0f0f0', fg='#7f8c8d').grid(row=2, column=4, sticky="w", padx=5)
 
         # Calculate button
         calc_btn = tk.Button(traj_info, text="🧠 Calculate Optimal Settings", 
@@ -986,13 +998,13 @@ class PipelineGUI(tk.Tk):
                             bg="#3498db", fg="white", 
                             font=("Arial", 10, "bold"), padx=15, pady=5,
                             relief='raised', borderwidth=2, cursor='hand2')
-        calc_btn.grid(row=2, column=0, columnspan=2, padx=5, pady=10, sticky="w")
+        calc_btn.grid(row=3, column=0, columnspan=2, padx=5, pady=10, sticky="w")
         create_tooltip(calc_btn, "Automatically calculate optimal chunk sizes, worker counts, and memory settings based on your trajectory characteristics")
 
         # Results label
         self.optimization_results_label = tk.Label(traj_info, text="Enter trajectory info and click 'Calculate Optimal Settings' for recommendations", 
                                                   font=("Arial", 9), bg='#f0f0f0', fg='#7f8c8d', wraplength=600)
-        self.optimization_results_label.grid(row=2, column=2, columnspan=2, sticky="w", padx=5, pady=10)
+        self.optimization_results_label.grid(row=3, column=2, columnspan=2, sticky="w", padx=5, pady=10)
 
         # --- Steps container ---
         steps = tk.Frame(self.scrollable_frame, bg='#f0f0f0')
@@ -1523,7 +1535,8 @@ class PipelineGUI(tk.Tk):
             "traj_file_size_mb": self.traj_file_size_mb.get(),
             "traj_num_frames": self.traj_num_frames.get(),
             "traj_num_atoms": self.traj_num_atoms.get(),
-            "available_memory_gb": self.available_memory_gb.get()
+            "available_memory_gb": self.available_memory_gb.get(),
+            "coord_precision": self.coord_precision.get()
         }
         with open(CONFIG_PATH, "w") as f:
             json.dump(data, f)
@@ -1574,6 +1587,7 @@ class PipelineGUI(tk.Tk):
         self.traj_num_frames.set(data.get("traj_num_frames", ""))
         self.traj_num_atoms.set(data.get("traj_num_atoms", ""))
         self.available_memory_gb.set(data.get("available_memory_gb", ""))
+        self.coord_precision.set(data.get("coord_precision", "single"))
 
         # Note: Skip checkboxes are NOT loaded from config as requested
 
@@ -2470,22 +2484,24 @@ StartupWMClass=MD-Analysis-Pipeline
             # Get trajectory characteristics
             file_size_mb = float(self.traj_file_size_mb.get().strip()) if self.traj_file_size_mb.get().strip() else 0
             num_frames = int(self.traj_num_frames.get().strip()) if self.traj_num_frames.get().strip() else 0
-            num_atoms = int(self.traj_num_atoms.get().strip()) if self.traj_num_atoms.get().strip() else 0
+            num_atoms_extracted = int(self.traj_num_atoms.get().strip()) if self.traj_num_atoms.get().strip() else 0
             available_memory_gb = float(self.available_memory_gb.get().strip()) if self.available_memory_gb.get().strip() else 0
+            precision = self.coord_precision.get()
+            max_workers = int(self.max_workers_var.get())  # Get user-specified max workers
             
-            if not all([file_size_mb, num_frames, num_atoms, available_memory_gb]):
+            if not all([file_size_mb, num_frames, num_atoms_extracted, available_memory_gb]):
                 messagebox.showwarning("Missing Information", 
                                      "Please fill in all trajectory characteristics fields for optimal calculations.")
                 return
             
             # Calculate memory requirements and optimal settings
-            recommendations = self._calculate_memory_optimization(file_size_mb, num_frames, num_atoms, available_memory_gb)
+            recommendations = self._calculate_memory_optimization(file_size_mb, num_frames, num_atoms_extracted, available_memory_gb, precision, max_workers)
             
-            # Update GUI with recommendations
+            # Update GUI with recommendations (chunk size only, since max_workers is user-controlled)
             self._apply_recommendations(recommendations)
             
             # Display results
-            results_text = f"✓ Optimal settings calculated! Chunk: {recommendations['chunk_size']}, Workers: {recommendations['max_workers']}, SLURM Mem: {recommendations['slurm_memory_gb']}GB"
+            results_text = f"✓ Chunk size optimized for {recommendations['max_workers']} workers: {recommendations['chunk_size']:,} frames, SLURM Mem: {recommendations['slurm_memory_gb']}GB"
             self.optimization_results_label.config(text=results_text, fg='#27ae60')
             
             # Show detailed popup
@@ -2496,60 +2512,86 @@ StartupWMClass=MD-Analysis-Pipeline
         except Exception as e:
             messagebox.showerror("Calculation Error", f"Error calculating optimal settings:\n{e}")
     
-    def _calculate_memory_optimization(self, file_size_mb, num_frames, num_atoms, available_memory_gb):
-        """Calculate optimal memory settings based on trajectory characteristics"""
+    def _calculate_memory_optimization(self, file_size_mb, num_frames, num_atoms_extracted, available_memory_gb, precision, max_workers):
+        """Calculate optimal memory settings based on trajectory characteristics and real-world data"""
         
-        # Memory estimation constants (empirically determined)
-        BYTES_PER_COORD = 8  # Double precision float
-        COORDS_PER_ATOM = 3  # x, y, z
-        VMD_OVERHEAD_FACTOR = 2.5  # VMD memory overhead
-        PYTHON_OVERHEAD_FACTOR = 1.8  # Python object overhead
+        # Real-world calibration constants (based on user data: 24GB DCD → 42GB output, 200k frames, 3k atoms)
+        REFERENCE_DCD_SIZE_GB = 24.0
+        REFERENCE_OUTPUT_SIZE_GB = 42.0
+        REFERENCE_FRAMES = 200000
+        REFERENCE_ATOMS = 3000
+        DCD_TO_OUTPUT_RATIO = REFERENCE_OUTPUT_SIZE_GB / REFERENCE_DCD_SIZE_GB  # 1.75
+        
+        # Precision factors
+        BYTES_PER_COORD_DOUBLE = 8  # Double precision
+        BYTES_PER_COORD_SINGLE = 4  # Single precision
+        bytes_per_coord = BYTES_PER_COORD_SINGLE if precision == "single" else BYTES_PER_COORD_DOUBLE
+        precision_factor = 0.5 if precision == "single" else 1.0
+        
+        # System overhead constants
+        VMD_OVERHEAD_FACTOR = 2.5  # VMD memory overhead during processing
+        PYTHON_OVERHEAD_FACTOR = 1.8  # Python/NumPy object overhead
         SAFETY_FACTOR = 0.75  # Use 75% of available memory for safety
-        BASE_MEMORY_GB = 2  # Base system overhead
+        BASE_MEMORY_GB = 3  # Base system overhead
         
-        # Calculate memory per frame (in MB)
-        memory_per_frame_mb = (num_atoms * COORDS_PER_ATOM * BYTES_PER_COORD / (1024**2)) * PYTHON_OVERHEAD_FACTOR
+        # Calculate expected output file size after Step 1 (coordinate extraction)
+        # Scale from reference data and adjust for precision
+        scaling_factor = (num_frames / REFERENCE_FRAMES) * (num_atoms_extracted / REFERENCE_ATOMS)
+        expected_output_size_gb = (file_size_mb / 1024) * DCD_TO_OUTPUT_RATIO * scaling_factor * precision_factor
+        expected_output_size_mb = expected_output_size_gb * 1024
         
-        # Calculate VMD memory usage per file (approximation)
+        # Calculate memory per frame (more accurate based on actual output scaling)
+        memory_per_frame_mb = (expected_output_size_mb / num_frames) * PYTHON_OVERHEAD_FACTOR
+        
+        # Calculate VMD memory usage during Step 1
         vmd_memory_per_file_mb = file_size_mb * VMD_OVERHEAD_FACTOR
         
         # Available memory for processing (in MB)
         available_memory_mb = (available_memory_gb - BASE_MEMORY_GB) * 1024 * SAFETY_FACTOR
         
-        # Calculate optimal chunk size for unwrapping
-        # Memory for chunk = chunk_size * memory_per_frame * safety_factor
-        max_chunk_memory_mb = available_memory_mb * 0.4  # Use 40% of available memory for chunks
-        optimal_chunk_size = int(max_chunk_memory_mb / memory_per_frame_mb)
-        optimal_chunk_size = max(1000, min(optimal_chunk_size, num_frames))  # Clamp between 1000 and num_frames
+        # Calculate optimal chunk size for Step 2 (unwrapping) based on user-specified max_workers
+        # This is the most memory-intensive step
+        # Each worker needs memory for: chunk processing + file I/O overhead + working memory
+        available_memory_per_worker_mb = available_memory_mb / max_workers
+        memory_overhead_factor = 1.8  # 1.8x for processing overhead
         
-        # Calculate optimal number of workers
-        # Each worker needs memory for: chunk processing + overhead
-        memory_per_worker_mb = optimal_chunk_size * memory_per_frame_mb * 1.5  # 1.5x for processing overhead
-        max_workers_by_memory = int(available_memory_mb / memory_per_worker_mb)
-        max_workers_by_cpu = mp.cpu_count()
+        # Calculate optimal chunk size that fits within memory constraints
+        max_chunk_size_by_memory = int(available_memory_per_worker_mb / (memory_per_frame_mb * memory_overhead_factor))
+        optimal_chunk_size = max(1000, min(max_chunk_size_by_memory, num_frames))  # Clamp between 1000 and num_frames
         
-        # Choose conservative worker count
-        optimal_workers = max(1, min(max_workers_by_memory, max_workers_by_cpu, 4))  # Cap at 4 for stability
+        # Use the user-specified number of workers
+        optimal_workers = max_workers
         
-        # Calculate recommended SLURM memory (with buffer)
-        total_estimated_memory_gb = ((optimal_workers * memory_per_worker_mb + vmd_memory_per_file_mb) / 1024) + BASE_MEMORY_GB
-        recommended_slurm_memory = int(total_estimated_memory_gb * 1.3)  # 30% buffer
+        # Calculate actual memory per worker with optimized chunk size
+        memory_per_worker_mb = optimal_chunk_size * memory_per_frame_mb * memory_overhead_factor
         
-        # Calculate processing time estimates
-        estimated_vmd_time_per_file = file_size_mb / 100  # Rough estimate: 100MB per minute
-        estimated_unwrap_time_per_file = (num_frames * num_atoms) / (500000 * optimal_workers)  # Rough estimate
-        estimated_com_time_per_file = num_frames / (50000 * optimal_workers)  # Rough estimate
-        total_time_per_file = estimated_vmd_time_per_file + estimated_unwrap_time_per_file + estimated_com_time_per_file
+        # Calculate recommended SLURM memory (with buffer for all steps)
+        # Account for VMD memory + parallel processing + output files
+        peak_memory_step1_gb = (vmd_memory_per_file_mb + expected_output_size_mb) / 1024
+        peak_memory_step2_gb = (optimal_workers * memory_per_worker_mb + expected_output_size_mb) / 1024
+        peak_memory_step3_gb = expected_output_size_gb * 0.8  # COM calculation is lighter
         
-        # Determine recommended DCD batch size
-        if total_time_per_file > 2:  # If > 2 hours per file
+        max_memory_needed_gb = max(peak_memory_step1_gb, peak_memory_step2_gb, peak_memory_step3_gb)
+        total_estimated_memory_gb = max_memory_needed_gb + BASE_MEMORY_GB
+        recommended_slurm_memory = max(16, int(total_estimated_memory_gb * 1.4))  # 40% buffer, minimum 16GB
+        
+        # Calculate processing time estimates (improved)
+        estimated_vmd_time_hours = (file_size_mb / 1024) * 0.5  # ~30 minutes per GB of DCD
+        estimated_unwrap_time_hours = (num_frames * num_atoms_extracted) / (600000 * optimal_workers)  # Empirical rate
+        estimated_com_time_hours = num_frames / (100000 * optimal_workers)  # COM is faster
+        total_time_per_file_hours = estimated_vmd_time_hours + estimated_unwrap_time_hours + estimated_com_time_hours
+        
+        # Determine recommended DCD batch size based on memory and time
+        if total_estimated_memory_gb > available_memory_gb * 0.8:  # Close to memory limit
+            recommended_batch_size = 1
+        elif total_time_per_file_hours > 8:  # Very long processing time
             recommended_batch_size = 2
-        elif total_time_per_file > 1:  # If > 1 hour per file
+        elif total_time_per_file_hours > 4:  # Long processing time
             recommended_batch_size = 3
         elif available_memory_gb < 100:  # Low memory systems
-            recommended_batch_size = 4
+            recommended_batch_size = 3
         else:
-            recommended_batch_size = 6
+            recommended_batch_size = 4
         
         return {
             'chunk_size': optimal_chunk_size,
@@ -2558,24 +2600,27 @@ StartupWMClass=MD-Analysis-Pipeline
             'recommended_batch_size': recommended_batch_size,
             'memory_per_frame_mb': memory_per_frame_mb,
             'memory_per_worker_mb': memory_per_worker_mb,
-            'estimated_time_per_file_hours': total_time_per_file,
+            'estimated_time_per_file_hours': total_time_per_file_hours,
             'vmd_memory_mb': vmd_memory_per_file_mb,
-            'total_estimated_memory_gb': total_estimated_memory_gb
+            'total_estimated_memory_gb': total_estimated_memory_gb,
+            'expected_output_size_gb': expected_output_size_gb,
+            'precision': precision,
+            'precision_factor': precision_factor,
+            'peak_memory_step1_gb': peak_memory_step1_gb,
+            'peak_memory_step2_gb': peak_memory_step2_gb,
+            'peak_memory_step3_gb': peak_memory_step3_gb
         }
     
     def _apply_recommendations(self, recommendations):
         """Apply calculated recommendations to GUI fields"""
-        # Update max workers
-        self.max_workers_var.set(recommendations['max_workers'])
-        
-        # Update chunk size
+        # Update chunk size (max_workers is now user-controlled in GUI)
         self.unwrap_chunk_var.set(str(recommendations['chunk_size']))
         
         # Update SLURM memory if SLURM fields exist
         if hasattr(self, 'sbatch_vars') and len(self.sbatch_vars) > 5:
             self.sbatch_vars[5].set(str(recommendations['slurm_memory_gb']))  # Memory field
         
-        # Update CPU count in SLURM to match workers
+        # Update CPU count in SLURM to match user-specified workers
         if hasattr(self, 'sbatch_vars') and len(self.sbatch_vars) > 3:
             self.sbatch_vars[3].set(str(recommendations['max_workers']))  # CPUs field
     
@@ -2599,16 +2644,25 @@ StartupWMClass=MD-Analysis-Pipeline
         content_frame.pack(fill="both", expand=True, padx=20, pady=20)
         
         # Results text
+        precision_text = f"{recommendations['precision']} precision" + (f" (~{(1-recommendations['precision_factor'])*100:.0f}% smaller files)" if recommendations['precision_factor'] < 1.0 else "")
+        
         results_text = f"""📊 MEMORY ANALYSIS:
-Memory per frame: {recommendations['memory_per_frame_mb']:.1f} MB
+Expected output file size: {recommendations['expected_output_size_gb']:.1f} GB ({precision_text})
+Memory per frame: {recommendations['memory_per_frame_mb']:.2f} MB
 Memory per worker: {recommendations['memory_per_worker_mb']:.1f} MB
 VMD memory estimate: {recommendations['vmd_memory_mb']:.1f} MB
-Total estimated memory: {recommendations['total_estimated_memory_gb']:.1f} GB
+
+📈 PEAK MEMORY BY STEP:
+Step 1 (VMD extraction): {recommendations['peak_memory_step1_gb']:.1f} GB
+Step 2 (Unwrapping): {recommendations['peak_memory_step2_gb']:.1f} GB
+Step 3 (COM calculation): {recommendations['peak_memory_step3_gb']:.1f} GB
+Total estimated: {recommendations['total_estimated_memory_gb']:.1f} GB
 
 ⚙️ RECOMMENDED SETTINGS:
 Optimal chunk size: {recommendations['chunk_size']:,} frames
 Max workers: {recommendations['max_workers']}
 SLURM memory request: {recommendations['slurm_memory_gb']} GB
+Coordinate precision: {recommendations['precision']}
 
 ⏱️ TIME ESTIMATES:
 Estimated time per DCD: {recommendations['estimated_time_per_file_hours']:.1f} hours
@@ -2616,16 +2670,19 @@ Recommended batch size: {recommendations['recommended_batch_size']} DCDs at once
 
 💡 OPTIMIZATION TIPS:
 • Process {recommendations['recommended_batch_size']} DCDs at a time using DCD Selection
-• Monitor memory usage during first run
-• Increase batch size if memory usage is low
-• Decrease batch size if you encounter OOM errors
+• Use {recommendations['precision']} precision for {"~50% smaller" if recommendations['precision'] == "single" else "full precision"} files
+• Step 2 (unwrapping) is most memory-intensive - chunk size optimized for this
+• Monitor memory usage during first run to fine-tune settings
 • Use memory mapping for Step 3 (COM calculation)
 
 🎯 APPLIED TO GUI:
-✓ Max Workers updated to {recommendations['max_workers']}
-✓ Chunk Size updated to {recommendations['chunk_size']:,}
+✓ Chunk Size optimized to {recommendations['chunk_size']:,} frames (based on {recommendations['max_workers']} workers)
 ✓ SLURM Memory updated to {recommendations['slurm_memory_gb']} GB
-✓ SLURM CPUs updated to {recommendations['max_workers']}"""
+✓ SLURM CPUs updated to {recommendations['max_workers']}
+✓ Coordinate Precision: {recommendations['precision']}
+
+💡 NOTE: Max Workers ({recommendations['max_workers']}) is user-controlled in Trajectory Characteristics.
+Chunk size is optimized based on your worker setting for best memory efficiency."""
 
         text_widget = tk.Text(content_frame, wrap=tk.WORD, font=("Consolas", 10), 
                              bg='white', fg='#2c3e50', relief='sunken', borderwidth=2)
