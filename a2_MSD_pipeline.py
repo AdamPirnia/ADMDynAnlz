@@ -695,6 +695,9 @@ class PipelineGUI(tk.Tk):
         # Configure grid weights for proper resizing
         self.main_frame.grid_rowconfigure(0, weight=1)
         self.main_frame.grid_columnconfigure(0, weight=1)
+        
+        # Configure scrollable frame grid for the new layout
+        self.scrollable_frame.grid_columnconfigure(0, weight=1)
 
         # Bind mouse wheel to canvas (Windows)
         self.canvas.bind("<MouseWheel>", self._on_mousewheel)
@@ -934,17 +937,15 @@ class PipelineGUI(tk.Tk):
 
 
 
-        # --- SLURM parameters ---
-        # Center the SLURM section horizontally
-        slurm_container = tk.Frame(self.scrollable_frame, bg='#f0f0f0')
-        slurm_container.grid(row=3, column=0, padx=15, pady=10, sticky="ew")
-        slurm_container.grid_columnconfigure(0, weight=1)
-        slurm_container.grid_columnconfigure(2, weight=1)
+        # --- SLURM parameters and Output Files side by side ---
+        params_container = tk.Frame(self.scrollable_frame, bg='#f0f0f0')
+        params_container.grid(row=3, column=0, padx=15, pady=10, sticky="ew")
         
-        sb = tk.LabelFrame(slurm_container, text="SLURM Submission Parameters",
+        # SLURM parameters on the left
+        sb = tk.LabelFrame(params_container, text="SLURM Submission Parameters",
                           font=("Arial", 11, "bold"), fg='#2c3e50', bg='#f0f0f0',
                           relief='groove', borderwidth=1)
-        sb.grid(row=0, column=1)
+        sb.grid(row=0, column=0, padx=(0, 10), pady=0, sticky="nw")
         
         sb_labels = ["Nodes","Partition","QOS","CPUs","Tasks","Memory (GB)","Walltime","Output prefix","Email"]
         sb_tooltips = [
@@ -961,60 +962,60 @@ class PipelineGUI(tk.Tk):
         
         self.sbatch_vars = []
         for i, (lbl, tooltip) in enumerate(zip(sb_labels, sb_tooltips)):
-            tk.Label(sb, text=f"{lbl}:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=i, column=0, sticky="e", padx=5, pady=5)
+            tk.Label(sb, text=f"{lbl}:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=i, column=0, sticky="e", padx=5, pady=3)
             v = tk.StringVar()
             if lbl == "CPUs":
                 v.set(str(self.max_workers_var.get()))  # Default to max_workers
             elif lbl == "Tasks":
                 v.set("1")  # Usually 1 for this type of job
-            entry = tk.Entry(sb, textvariable=v, width=25, font=("Arial", 10))
-            entry.grid(row=i, column=1, sticky="w", padx=5, pady=5)
+            entry = tk.Entry(sb, textvariable=v, width=18, font=("Arial", 10))
+            entry.grid(row=i, column=1, sticky="w", padx=5, pady=3)
             create_tooltip(entry, tooltip)
             self.sbatch_vars.append(v)
 
-        # --- File selectors & Generate ---
-        files = tk.LabelFrame(self.scrollable_frame, text="Output Files", 
+        # --- Output Files on the right ---
+        files = tk.LabelFrame(params_container, text="Output Files", 
                              font=("Arial", 11, "bold"), fg='#2c3e50', bg='#f0f0f0',
                              relief='groove', borderwidth=1)
-        files.grid(row=4, column=0, padx=15, pady=10, sticky="ew")
+        files.grid(row=0, column=1, padx=(10, 0), pady=0, sticky="nw")
         
-        tk.Label(files, text="Output folder name:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(files, text="Output folder name:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=0, sticky="e", padx=5, pady=3)
         self.output_folder_var = tk.StringVar(value="pipeline_run")
         # Add callback to clear browse path when user manually types folder name
         self.output_folder_var.trace('w', self.on_folder_name_changed)
-        folder_entry = tk.Entry(files, textvariable=self.output_folder_var, width=50, font=("Arial", 10))
-        folder_entry.grid(row=0, column=1, padx=5, pady=5)
+        folder_entry = tk.Entry(files, textvariable=self.output_folder_var, width=30, font=("Arial", 10))
+        folder_entry.grid(row=0, column=1, padx=5, pady=3)
         create_tooltip(folder_entry, "Name of the folder to contain all generated files and main_functions. Use the Browse button to select a specific location, or it will be created in the current directory. This self-contained folder can be uploaded directly to your target computer without additional setup.")
-        tk.Button(files, text="Browse...", command=self.browse_output_folder, font=("Arial", 10)).grid(
-            row=0, column=2, padx=5, pady=5
+        tk.Button(files, text="Browse...", command=self.browse_output_folder, font=("Arial", 9)).grid(
+            row=0, column=2, padx=5, pady=3
         )
         
-        # Show current output path
-        self.output_path_label = tk.Label(files, text="", font=("Arial", 7), bg='#f0f0f0', fg='#7f8c8d', wraplength=600)
-        self.output_path_label.grid(row=0, column=3, columnspan=2, sticky="w", padx=5)
+        # Show current output path (moved to new row for better layout)
+        self.output_path_label = tk.Label(files, text="", font=("Arial", 7), bg='#f0f0f0', fg='#7f8c8d', wraplength=400)
+        self.output_path_label.grid(row=1, column=0, columnspan=3, sticky="w", padx=5)
         self.update_output_path_label()
         
-        tk.Label(files, text="Main script file:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(files, text="Main script file:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=2, column=0, sticky="e", padx=5, pady=3)
         self.mainfile_var = tk.StringVar()
-        main_entry = tk.Entry(files, textvariable=self.mainfile_var, width=50, font=("Arial", 10))
-        main_entry.grid(row=1, column=1, padx=5, pady=5)
+        main_entry = tk.Entry(files, textvariable=self.mainfile_var, width=30, font=("Arial", 10))
+        main_entry.grid(row=2, column=1, padx=5, pady=3)
         create_tooltip(main_entry, "Python script filename (will be created in output folder)")
-        tk.Button(files, text="Save As...", command=self.save_mainfile, font=("Arial", 10)).grid(
-            row=1, column=2, padx=5, pady=5
+        tk.Button(files, text="Save As...", command=self.save_mainfile, font=("Arial", 9)).grid(
+            row=2, column=2, padx=5, pady=3
         )
         
-        tk.Label(files, text="Submit script file:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=2, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(files, text="Submit script file:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=3, column=0, sticky="e", padx=5, pady=3)
         self.submitfile_var = tk.StringVar()
-        submit_entry = tk.Entry(files, textvariable=self.submitfile_var, width=50, font=("Arial", 10))
-        submit_entry.grid(row=2, column=1, padx=5, pady=5)
+        submit_entry = tk.Entry(files, textvariable=self.submitfile_var, width=30, font=("Arial", 10))
+        submit_entry.grid(row=3, column=1, padx=5, pady=3)
         create_tooltip(submit_entry, "SLURM batch script filename (will be created in output folder)")
-        tk.Button(files, text="Save As...", command=self.save_submitfile, font=("Arial", 10)).grid(
-            row=2, column=2, padx=5, pady=5
+        tk.Button(files, text="Save As...", command=self.save_submitfile, font=("Arial", 9)).grid(
+            row=3, column=2, padx=5, pady=3
         )
 
         # Generate button with enhanced styling
         generate_frame = tk.Frame(self.scrollable_frame, bg='#f0f0f0')
-        generate_frame.grid(row=5, column=0, pady=20)
+        generate_frame.grid(row=4, column=0, pady=20)
         
         generate_btn = tk.Button(generate_frame, text="Generate Optimized Pipeline Files", 
                  command=self.generate_files, bg="#52c77a", fg="black", 
