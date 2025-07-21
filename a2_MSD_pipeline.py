@@ -526,13 +526,14 @@ class PipelineGUI(tk.Tk):
                           relief='groove', borderwidth=1)
         sb.grid(row=0, column=1)
         
-        sb_labels = ["Nodes","Partition","QOS","CPUs","Tasks","Walltime","Output prefix","Email"]
+        sb_labels = ["Nodes","Partition","QOS","CPUs","Tasks","Memory (GB)","Walltime","Output prefix","Email"]
         sb_tooltips = [
             "Number of compute nodes to request (usually 1 for single-node jobs)",
             "SLURM partition/queue name (e.g., 'standard', 'gpu', 'high-mem')", 
             "Quality of Service level for job priority",
             "Number of CPU cores per node to request",
             "Number of tasks/processes (usually 1 for serial jobs)",
+            "Memory allocation in GB (e.g., 160 for 160GB total memory)",
             "Maximum runtime (format: HH:MM:SS or DD-HH:MM:SS)",
             "Prefix for output log files",
             "Email address for job notifications"
@@ -1130,7 +1131,6 @@ The script will submit all .sh files using sbatch commands."""
                     "            from main_functions.coordinates_extract import raw_coords",
                     "        except (ImportError, AttributeError) as import_err:",
                     "            print(f'Warning: Compiled version failed ({import_err}), using Python version')",
-                    "            import sys",
                     "            import importlib.util",
                     "            spec = importlib.util.spec_from_file_location('coordinates_extract', 'main_functions/coordinates_extract.py')",
                     "            coords_module = importlib.util.module_from_spec(spec)",
@@ -1149,8 +1149,8 @@ The script will submit all .sh files using sbatch commands."""
                     f"            max_workers={max_workers if use_parallel else 1}",
                     "        )",
                     "        all_results['coordinates_extract'] = results_coords",
-                    "        if results_coords['success'] < results_coords.get('total', {nd}):",
-                    "            print(f'Warning: Only {results_coords[\"success\"]} out of {nd} coordinate files processed successfully')",
+                    f"        if results_coords['success'] < results_coords.get('total', {nd}):",
+                    f"            print(f'Warning: Only {{results_coords[\"success\"]}} out of {nd} coordinate files processed successfully')",
                     "        else:",
                     "            print('✓ All coordinate files processed successfully')",
                     "    except Exception as e:",
@@ -1178,7 +1178,6 @@ The script will submit all .sh files using sbatch commands."""
                     "            from main_functions.unwrap_coords import unwrapper",
                     "        except (ImportError, AttributeError) as import_err:",
                     "            print(f'Warning: Compiled version failed ({import_err}), using Python version')",
-                    "            import sys",
                     "            import importlib.util",
                     "            spec = importlib.util.spec_from_file_location('unwrap_coords', 'main_functions/unwrap_coords.py')",
                     "            unwrap_module = importlib.util.module_from_spec(spec)",
@@ -1197,8 +1196,8 @@ The script will submit all .sh files using sbatch commands."""
                     f"            chunk_size={chunk_param}",
                     "        )",
                     "        all_results['unwrap_coords'] = results_unwrap",
-                    "        if results_unwrap['success'] < {nd}:",
-                    "            print(f'Warning: Only {results_unwrap[\"success\"]} out of {nd} unwrap files processed successfully')",
+                    f"        if results_unwrap['success'] < {nd}:",
+                    f"            print(f'Warning: Only {{results_unwrap[\"success\"]}} out of {nd} unwrap files processed successfully')",
                     "        else:",
                     "            print('✓ All coordinate files unwrapped successfully')",
                     "    except Exception as e:",
@@ -1223,7 +1222,6 @@ The script will submit all .sh files using sbatch commands."""
                     "            from main_functions.COM_calc import coms",
                     "        except (ImportError, AttributeError) as import_err:",
                     "            print(f'Warning: Compiled version failed ({import_err}), using Python version')",
-                    "            import sys",
                     "            import importlib.util",
                     "            spec = importlib.util.spec_from_file_location('COM_calc', 'main_functions/COM_calc.py')",
                     "            com_module = importlib.util.module_from_spec(spec)",
@@ -1241,8 +1239,8 @@ The script will submit all .sh files using sbatch commands."""
                     f"            use_memmap={use_memmap}",
                     "        )",
                     "        all_results['COM_calc'] = results_com",
-                    "        if results_com['success'] < {nd}:",
-                    "            print(f'Warning: Only {results_com[\"success\"]} out of {nd} COM files processed successfully')",
+                    f"        if results_com['success'] < {nd}:",
+                    f"            print(f'Warning: Only {{results_com[\"success\"]}} out of {nd} COM files processed successfully')",
                     "        else:",
                     "            print('✓ All COM calculations completed successfully')",
                     "    except Exception as e:",
@@ -1268,7 +1266,6 @@ The script will submit all .sh files using sbatch commands."""
                         "            from main_functions.alpha2_MSD import a2_MSD",
                         "        except (ImportError, AttributeError) as import_err:",
                         "            print(f'Warning: Compiled version failed ({import_err}), using Python version')",
-                        "            import sys",
                         "            import importlib.util",
                         "            spec = importlib.util.spec_from_file_location('alpha2_MSD', 'main_functions/alpha2_MSD.py')",
                         "            alpha2_module = importlib.util.module_from_spec(spec)",
@@ -1305,7 +1302,6 @@ The script will submit all .sh files using sbatch commands."""
                         "            from main_functions.axz import alpha_xz",
                         "        except (ImportError, AttributeError) as import_err:",
                         "            print(f'Warning: Compiled version failed ({import_err}), using Python version')",
-                        "            import sys",
                         "            import importlib.util",
                         "            spec = importlib.util.spec_from_file_location('axz', 'main_functions/axz.py')",
                         "            axz_module = importlib.util.module_from_spec(spec)",
@@ -1368,7 +1364,7 @@ The script will submit all .sh files using sbatch commands."""
             sub_full_path = os.path.join(output_path, sub_fn)
 
             sb = [v.get().strip() for v in self.sbatch_vars]
-            # sb order: Nodes, Partition, QOS, CPUs, Tasks, Walltime, Output prefix, Email
+            # sb order: Nodes, Partition, QOS, CPUs, Tasks, Memory (GB), Walltime, Output prefix, Email
 
             with open(sub_full_path, "w") as f:
                 f.write("#!/bin/bash\n")
@@ -1379,10 +1375,12 @@ The script will submit all .sh files using sbatch commands."""
                 f.write(f"#SBATCH -q {sb[2]}\n")
                 f.write(f"#SBATCH -c {sb[3]}\n")
                 f.write(f"#SBATCH -n {sb[4]}\n")
-                f.write(f"#SBATCH -t {sb[5]}\n")
-                f.write(f"#SBATCH -o {sb[6]}.log\n")
+                if sb[5].strip():  # Only add memory if specified
+                    f.write(f"#SBATCH --mem={sb[5]}G\n")
+                f.write(f"#SBATCH -t {sb[6]}\n")
+                f.write(f"#SBATCH -o {sb[7]}.log\n")
                 f.write("#SBATCH --mail-type=ALL\n")
-                email = sb[7]
+                email = sb[8]
                 if "@" not in email:
                     email = email + "@asu.edu"
                 f.write(f"#SBATCH --mail-user={email}\n")
