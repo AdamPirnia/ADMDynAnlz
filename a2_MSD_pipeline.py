@@ -134,11 +134,528 @@ def create_tooltip(widget, text):
     """Helper function to create tooltips easily"""
     return ToolTip(widget, text)
 
+class CalculationsWindow(tk.Toplevel):
+    """Separate window for Alpha2/MSD and Dipole calculations"""
+    
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.parent = parent
+        self.title("Analysis Calculations - Alpha2/MSD & Dipole Moments")
+        self.geometry("1200x900")
+        self.configure(bg='#f0f0f0')
+        
+        # Make window modal
+        self.transient(parent)
+        self.grab_set()
+        
+        # Initialize variables
+        self.init_variables()
+        
+        # Create UI
+        self.create_ui()
+        
+        # Load configuration if available
+        self.load_calculation_config()
+        
+        # Center window on parent
+        self.center_on_parent()
+    
+    def init_variables(self):
+        """Initialize all calculation variables"""
+        # Alpha2/MSD variables
+        self.skip_alpha2 = tk.BooleanVar(value=False)
+        self.calc_type_var = tk.StringVar(value="alpha2_msd")
+        self.a2_vars = []
+        self.a2_chunk_processing = tk.BooleanVar(value=True)
+        self.a2_validate = tk.BooleanVar(value=True)
+        
+        # Dipole calculation variables
+        self.skip_dipole = tk.BooleanVar(value=False)
+        self.dipole_vars = []
+        self.dipole_parallel = tk.BooleanVar(value=True)
+        self.dipole_validate = tk.BooleanVar(value=True)
+        self.dipole_chunk_processing = tk.BooleanVar(value=True)
+    
+    def create_ui(self):
+        """Create the user interface"""
+        # Main container with scrolling
+        main_frame = tk.Frame(self, bg='#f0f0f0')
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Header
+        header_frame = tk.Frame(main_frame, bg='#f0f0f0')
+        header_frame.pack(fill="x", pady=(0, 15))
+        
+        tk.Label(header_frame, text="Analysis Calculations", 
+                font=("Arial", 16, "bold"), fg='#2c3e50', bg='#f0f0f0').pack()
+        tk.Label(header_frame, text="Configure Alpha2/MSD and Dipole moment calculations", 
+                font=("Arial", 10), fg='#7f8c8d', bg='#f0f0f0').pack()
+        
+        # Create notebook for tabs
+        notebook = ttk.Notebook(main_frame)
+        notebook.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+        
+        # Alpha2/MSD tab
+        alpha2_frame = tk.Frame(notebook, bg='#f0f0f0')
+        notebook.add(alpha2_frame, text="α₂(t) and MSD Calculation")
+        self.create_alpha2_section(alpha2_frame)
+        
+        # Dipole tab
+        dipole_frame = tk.Frame(notebook, bg='#f0f0f0')
+        notebook.add(dipole_frame, text="Dipole Moments")
+        self.create_dipole_section(dipole_frame)
+        
+        # Buttons frame
+        buttons_frame = tk.Frame(main_frame, bg='#f0f0f0')
+        buttons_frame.pack(fill="x", pady=10)
+        
+        # Generate button
+        generate_btn = tk.Button(buttons_frame, text="Generate Calculation Scripts", 
+                                command=self.generate_calculation_files, 
+                                bg="#52c77a", fg="black", 
+                                font=("Arial", 12, "bold"), padx=20, pady=10,
+                                relief='raised', borderwidth=2, cursor='hand2')
+        generate_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Close button
+        close_btn = tk.Button(buttons_frame, text="Close", 
+                             command=self.close_window, 
+                             bg="#e74c3c", fg="white", 
+                             font=("Arial", 10), padx=15, pady=10,
+                             relief='raised', borderwidth=2, cursor='hand2')
+        close_btn.pack(side=tk.RIGHT, padx=5)
+    
+    def create_alpha2_section(self, parent):
+        """Create the Alpha2/MSD calculation section"""
+        # Title frame with skip checkbox
+        title_frame = tk.Frame(parent, bg='#f0f0f0')
+        title_frame.pack(fill="x", padx=10, pady=5)
+        
+        tk.Label(title_frame, text="Non-Gaussian Parameter α₂(t) and MSD Calculation", 
+                font=("Arial", 13, "bold"), fg='#2c3e50', bg='#f0f0f0').pack(side="left")
+        skip_check = tk.Checkbutton(title_frame, text="Skip", variable=self.skip_alpha2,
+                                   command=lambda: self.toggle_frame(alpha2_content, self.skip_alpha2.get()),
+                                   font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50', 
+                                   selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        skip_check.pack(side="right", padx=10)
+        create_tooltip(skip_check, "Skip Alpha2/MSD calculation if already completed")
+        
+        # Content frame
+        alpha2_content = tk.LabelFrame(parent, text="", relief='groove', borderwidth=1, bg='#f0f0f0')
+        alpha2_content.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        # Calculation type selection
+        calc_type_frame = tk.Frame(alpha2_content, bg='#f0f0f0')
+        calc_type_frame.pack(fill="x", padx=10, pady=10)
+        
+        tk.Label(calc_type_frame, text="Calculation Type:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').pack(side="left")
+        
+        radio_frame = tk.Frame(calc_type_frame, bg='#f0f0f0')
+        radio_frame.pack(side="left", padx=20)
+        
+        # Unicode fonts for Greek characters
+        unicode_fonts = [("Segoe UI", 10), ("Arial Unicode MS", 10), ("DejaVu Sans", 10), 
+                        ("Liberation Sans", 10), ("Arial", 10), ("TkDefaultFont", 10)]
+        
+        unicode_font = ("TkDefaultFont", 10)
+        for font in unicode_fonts:
+            try:
+                test_widget = tk.Label(radio_frame, text="α", font=font)
+                unicode_font = font
+                test_widget.destroy()
+                break
+            except:
+                continue
+        
+        alpha2_radio = tk.Radiobutton(radio_frame, text="α₂(t) and MSD", variable=self.calc_type_var, 
+                      value="alpha2_msd", font=unicode_font, bg='#f0f0f0', fg='#2c3e50',
+                      selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        alpha2_radio.pack(side=tk.LEFT, padx=5)
+        create_tooltip(alpha2_radio, "Calculate standard non-Gaussian parameter alpha2(t) = 3<Dr^4>/(5<Dr^2>^2) - 1")
+        
+        alpha_xz_radio = tk.Radiobutton(radio_frame, text="α_xz(t)", variable=self.calc_type_var, 
+                      value="alpha_xz", font=unicode_font, bg='#f0f0f0', fg='#2c3e50',
+                      selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        alpha_xz_radio.pack(side=tk.LEFT, padx=5)
+        create_tooltip(alpha_xz_radio, "Calculate directional correlation parameter alpha_xz(t) = <Dx^2*Dz^2>/(<Dx^2>*<Dz^2>) - 1")
+        
+        # Parameters grid
+        params_frame = tk.Frame(alpha2_content, bg='#f0f0f0')
+        params_frame.pack(fill="x", padx=10, pady=10)
+        
+        labels = ["INdir", "OUTdir", "Min frames"]
+        tooltips = [
+            "Input directory containing com_data folder with trajectory files",
+            "Output directory where results will be saved (MSDs and alpha2s folders)",
+            "Minimum number of time frames required per trajectory file"
+        ]
+        
+        for i, (lbl, tooltip) in enumerate(zip(labels, tooltips)):
+            tk.Label(params_frame, text=f"{lbl}:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(
+                row=i, column=0, sticky="e", padx=5, pady=5)
+            v = tk.StringVar()
+            entry = tk.Entry(params_frame, textvariable=v, width=50, font=("Arial", 10))
+            entry.grid(row=i, column=1, padx=5, pady=5, sticky="w")
+            create_tooltip(entry, tooltip)
+            self.a2_vars.append(v)
+        
+        # Advanced options
+        options_frame = tk.Frame(alpha2_content, bg='#f0f0f0')
+        options_frame.pack(fill="x", padx=10, pady=10)
+        
+        tk.Label(options_frame, text="Chunk Processing:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(
+            row=0, column=0, sticky="e", padx=5, pady=5)
+        chunk_check = tk.Checkbutton(options_frame, variable=self.a2_chunk_processing, font=("Arial", 10),
+                                    bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        chunk_check.grid(row=0, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(chunk_check, "Process data in chunks for better memory efficiency with large datasets")
+        
+        tk.Label(options_frame, text="Validate Data:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(
+            row=1, column=0, sticky="e", padx=5, pady=5)
+        validate_check = tk.Checkbutton(options_frame, variable=self.a2_validate, font=("Arial", 10),
+                                       bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        validate_check.grid(row=1, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(validate_check, "Perform data validation checks during processing")
+        
+        self.alpha2_content_frame = alpha2_content
+        self.toggle_frame(alpha2_content, self.skip_alpha2.get())
+    
+    def create_dipole_section(self, parent):
+        """Create the dipole calculation section"""
+        # Title frame with skip checkbox
+        title_frame = tk.Frame(parent, bg='#f0f0f0')
+        title_frame.pack(fill="x", padx=10, pady=5)
+        
+        tk.Label(title_frame, text="Dipole Moment Calculation", 
+                font=("Arial", 13, "bold"), fg='#2c3e50', bg='#f0f0f0').pack(side="left")
+        skip_check = tk.Checkbutton(title_frame, text="Skip", variable=self.skip_dipole,
+                                   command=lambda: self.toggle_frame(dipole_content, self.skip_dipole.get()),
+                                   font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50', 
+                                   selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        skip_check.pack(side="right", padx=10)
+        create_tooltip(skip_check, "Skip dipole moment calculation if already completed")
+        
+        # Content frame
+        dipole_content = tk.LabelFrame(parent, text="", relief='groove', borderwidth=1, bg='#f0f0f0')
+        dipole_content.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        # Parameters grid
+        params_frame = tk.Frame(dipole_content, bg='#f0f0f0')
+        params_frame.pack(fill="x", padx=10, pady=10)
+        
+        labels = ["Coords INdir", "COM INdir", "OUTdir", "Atom charges", "Atoms per particle", "Stride (optional)"]
+        tooltips = [
+            "Input directory containing coordinate files (continued_xyz_*.dat)",
+            "Input directory containing COM files (com_*.dat)",
+            "Output directory for dipole moment files",
+            "List of atomic charges separated by commas (e.g., -0.8476,0.4238,0.4238)",
+            "Number of atoms per molecule/particle (must match number of charges)",
+            "Frame stride for processing (default: 1, use higher values to skip frames)"
+        ]
+        
+        for i, (lbl, tooltip) in enumerate(zip(labels, tooltips)):
+            tk.Label(params_frame, text=f"{lbl}:*" if "optional" not in lbl else f"{lbl}:", 
+                    font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(
+                row=i, column=0, sticky="e", padx=5, pady=5)
+            v = tk.StringVar()
+            if lbl == "Stride (optional)":
+                v.set("1")  # Default stride
+            elif lbl == "Atoms per particle":
+                v.set("3")  # Default for common molecules like water
+            entry = tk.Entry(params_frame, textvariable=v, width=50, font=("Arial", 10))
+            entry.grid(row=i, column=1, padx=5, pady=5, sticky="w")
+            create_tooltip(entry, tooltip)
+            self.dipole_vars.append(v)
+        
+        # Advanced options
+        options_frame = tk.Frame(dipole_content, bg='#f0f0f0')
+        options_frame.pack(fill="x", padx=10, pady=10)
+        
+        tk.Label(options_frame, text="Use Parallel Processing:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(
+            row=0, column=0, sticky="e", padx=5, pady=5)
+        parallel_check = tk.Checkbutton(options_frame, variable=self.dipole_parallel, font=("Arial", 10),
+                                       bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        parallel_check.grid(row=0, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(parallel_check, "Enable parallel processing for faster dipole calculations")
+        
+        tk.Label(options_frame, text="Chunk Processing:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(
+            row=1, column=0, sticky="e", padx=5, pady=5)
+        chunk_check = tk.Checkbutton(options_frame, variable=self.dipole_chunk_processing, font=("Arial", 10),
+                                    bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        chunk_check.grid(row=1, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(chunk_check, "Process data in chunks for memory efficiency")
+        
+        tk.Label(options_frame, text="Validate Data:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(
+            row=2, column=0, sticky="e", padx=5, pady=5)
+        validate_check = tk.Checkbutton(options_frame, variable=self.dipole_validate, font=("Arial", 10),
+                                       bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
+        validate_check.grid(row=2, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(validate_check, "Perform data validation checks during processing")
+        
+        self.dipole_content_frame = dipole_content
+        self.toggle_frame(dipole_content, self.skip_dipole.get())
+    
+    def toggle_frame(self, frame, skip):
+        """Disable or enable all entries & buttons in a frame"""
+        state = "disabled" if skip else "normal"
+        for widget in frame.winfo_children():
+            if isinstance(widget, (tk.Entry, tk.Button)):
+                widget.configure(state=state)
+            elif hasattr(widget, 'winfo_children'):
+                for child in widget.winfo_children():
+                    if isinstance(child, (tk.Entry, tk.Button)):
+                        child.configure(state=state)
+    
+    def center_on_parent(self):
+        """Center this window on the parent window"""
+        self.update_idletasks()
+        parent_x = self.parent.winfo_x()
+        parent_y = self.parent.winfo_y()
+        parent_width = self.parent.winfo_width()
+        parent_height = self.parent.winfo_height()
+        
+        x = parent_x + (parent_width - self.winfo_width()) // 2
+        y = parent_y + (parent_height - self.winfo_height()) // 2
+        
+        self.geometry(f"+{x}+{y}")
+    
+    def load_calculation_config(self):
+        """Load calculation configuration from parent"""
+        # This could be extended to load/save separate config for calculations
+        pass
+    
+    def generate_calculation_files(self):
+        """Generate separate script files for the selected calculations"""
+        try:
+            # Get common parameters from parent
+            baseDir = self.parent.baseDir_var.get().strip()
+            if not baseDir:
+                raise ValueError("Base Directory is required (set in main window)")
+            
+            num_dcd = int(self.parent.num_dcd_var.get())
+            num_particles = int(self.parent.num_particles_var.get())
+            max_workers = int(self.parent.max_workers_var.get())
+            
+            # Get output folder from parent
+            output_folder = self.parent.output_folder_var.get().strip()
+            if not output_folder:
+                raise ValueError("Output folder name is required (set in main window)")
+            
+            # Use the full path if set by browse, otherwise use current directory
+            if (hasattr(self.parent, 'output_full_path') and self.parent.output_full_path and 
+                os.path.basename(self.parent.output_full_path) == output_folder):
+                output_path = self.parent.output_full_path
+            else:
+                output_path = os.path.join(os.getcwd(), output_folder)
+            
+            # Create the output directory if it doesn't exist
+            os.makedirs(output_path, exist_ok=True)
+            
+            files_created = []
+            
+            # Generate Alpha2/MSD calculation script
+            if not self.skip_alpha2.get():
+                alpha2_file = self.generate_alpha2_script(baseDir, num_dcd, num_particles, max_workers, output_path)
+                files_created.append(alpha2_file)
+            
+            # Generate Dipole calculation script
+            if not self.skip_dipole.get():
+                dipole_file = self.generate_dipole_script(baseDir, num_dcd, num_particles, max_workers, output_path)
+                files_created.append(dipole_file)
+            
+            if not files_created:
+                messagebox.showwarning("No calculations selected", 
+                                     "Please enable at least one calculation type (uncheck 'Skip' options)")
+                return
+            
+            message = f"Successfully generated calculation scripts:\n\n"
+            for file in files_created:
+                message += f"• {os.path.basename(file)}\n"
+            message += f"\nLocation: {output_path}\n\n"
+            message += "These scripts can be run independently or as part of your pipeline."
+            
+            messagebox.showinfo("Success", message)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to generate calculation files:\n{e}")
+    
+    def generate_alpha2_script(self, baseDir, num_dcd, num_particles, max_workers, output_path):
+        """Generate Alpha2/MSD calculation script"""
+        in4, out4, minf = [v.get().strip() for v in self.a2_vars]
+        calc_type = self.calc_type_var.get()
+        chunk_processing = self.a2_chunk_processing.get()
+        validate_data = self.a2_validate.get()
+        
+        if not all([in4, out4, minf]):
+            raise ValueError("All Alpha2/MSD parameters are required")
+        
+        script_name = "alpha2_calculation.py" if calc_type == "alpha2_msd" else "alpha_xz_calculation.py"
+        script_path = os.path.join(output_path, script_name)
+        
+        function_name = "a2_MSD" if calc_type == "alpha2_msd" else "alpha_xz"
+        module_name = "alpha2_MSD" if calc_type == "alpha2_msd" else "axz"
+        calculation_type = "α₂(t) and MSD" if calc_type == "alpha2_msd" else "α_xz(t)"
+        
+        script_content = f'''#!/usr/bin/env python3
+"""
+{calculation_type} Calculation Script
+Generated by MD Analysis Pipeline GUI v2.0
+"""
+
+import sys
+import time
+import os
+
+def main():
+    print('='*60)
+    print('{calculation_type.upper()} CALCULATION')
+    print('='*60)
+    start_time = time.time()
+    
+    try:
+        # Try importing compiled version first, fallback to Python version
+        try:
+            from main_functions.{module_name} import {function_name}
+        except (ImportError, AttributeError) as import_err:
+            print(f'Warning: Compiled version failed ({{import_err}}), using Python version')
+            import importlib.util
+            spec = importlib.util.spec_from_file_location('{module_name}', 'main_functions/{module_name}.py')
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            {function_name} = module.{function_name}
+        
+                 results = {function_name}(
+             baseDir={repr(baseDir)},
+             INdir={repr(in4)},
+             OUTdir={repr(out4)},
+             num_dcd={num_dcd},
+             partcl_num={num_particles},
+             numFrames=int({minf}),
+             chunk_processing={chunk_processing},
+             validate_data={validate_data}
+         )
+        
+        total_time = time.time() - start_time
+        
+        print(f'\\n✓ {calculation_type} calculation completed!')
+        print(f'  Successful files: {{results["success"]}}/{num_dcd}')
+        print(f'  Total time: {{total_time:.2f}}s')
+        if 'data_quality' in results:
+            print(f'  Data quality: {{results["data_quality"]}}')
+        
+    except Exception as e:
+        print(f'✗ {calculation_type} calculation failed: {{e}}')
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()
+'''
+        
+        with open(script_path, 'w') as f:
+            f.write(script_content)
+        
+        return script_path
+    
+    def generate_dipole_script(self, baseDir, num_dcd, num_particles, max_workers, output_path):
+        """Generate dipole calculation script"""
+        coords_in, com_in, dipole_out, charges_str, atoms_per_particle_str, stride_str = [v.get().strip() for v in self.dipole_vars]
+        
+        if not all([coords_in, com_in, dipole_out, charges_str, atoms_per_particle_str]):
+            raise ValueError("All required dipole parameters must be provided")
+        
+        # Parse charges
+        try:
+            charges = [float(x.strip()) for x in charges_str.split(',') if x.strip()]
+        except ValueError:
+            raise ValueError("Charges must be comma-separated numbers (e.g., -0.8476,0.4238,0.4238)")
+        
+        try:
+            atoms_per_particle = int(atoms_per_particle_str)
+        except ValueError:
+            raise ValueError("Atoms per particle must be an integer")
+        
+        stride = 1
+        if stride_str:
+            try:
+                stride = int(stride_str)
+            except ValueError:
+                raise ValueError("Stride must be an integer")
+        
+        if len(charges) != atoms_per_particle:
+            raise ValueError(f"Number of charges ({len(charges)}) must match atoms per particle ({atoms_per_particle})")
+        
+        use_parallel = self.dipole_parallel.get()
+        chunk_processing = self.dipole_chunk_processing.get()
+        validate_data = self.dipole_validate.get()
+        
+        script_path = os.path.join(output_path, "dipole_calculation.py")
+        
+        script_content = f'''#!/usr/bin/env python3
+"""
+Dipole Moment Calculation Script
+Generated by MD Analysis Pipeline GUI v2.0
+"""
+
+import sys
+import time
+import os
+
+def main():
+    print('='*60)
+    print('DIPOLE MOMENT CALCULATION')
+    print('='*60)
+    start_time = time.time()
+    
+    try:
+        # Import dipole function
+        from main_functions.dipole_function import dipole_functions
+        
+                 results = dipole_functions(
+             baseDir={repr(baseDir)},
+             Coords={repr(coords_in)},
+             COMs={repr(com_in)},
+             OUTdir={repr(dipole_out)},
+             Charges={charges},
+             num_dcds={num_dcd},
+             num_particles={num_particles},
+             atoms_per_particle={atoms_per_particle},
+             stride={stride},
+             max_workers={max_workers if use_parallel else 1},
+             chunk_processing={chunk_processing},
+             validate_data={validate_data}
+         )
+        
+        total_time = time.time() - start_time
+        
+        print(f'\\n✓ Dipole moment calculation completed!')
+        print(f'  Successful files: {{results["success"]}}/{num_dcd}')
+        print(f'  Total time: {{total_time:.2f}}s')
+        if 'overall_mean_magnitude' in results:
+            print(f'  Average dipole magnitude: {{results["overall_mean_magnitude"]:.3f}} ± {{results["overall_std_magnitude"]:.3f}} D')
+        
+    except Exception as e:
+        print(f'✗ Dipole moment calculation failed: {{e}}')
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()
+'''
+        
+        with open(script_path, 'w') as f:
+            f.write(script_content)
+        
+        return script_path
+    
+    def close_window(self):
+        """Close the calculations window"""
+        self.grab_release()
+        self.destroy()
+
 class PipelineGUI(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("MD Dynamics Analysis Pipeline")
-        self.geometry("1050x1100")  # Optimized for 27" wide screen
+        self.title("MD Dynamics Analysis Pipeline - Data Preprocessing")
+        self.geometry("1050x900")  # Smaller size since we removed Step 4
         self.configure(bg='#f0f0f0')  # Light gray background for modern look
         
         # Configure ttk styling for better appearance
@@ -202,9 +719,9 @@ class PipelineGUI(tk.Tk):
         header_frame = tk.Frame(self.scrollable_frame, bg='#f0f0f0')
         header_frame.grid(row=0, column=0, sticky="ew", padx=15, pady=(15,0))
         
-        tk.Label(header_frame, text="MD Dynamics Analysis", 
+        tk.Label(header_frame, text="MD Data Preprocessing Pipeline", 
                 font=("Arial", 14, "bold"), fg='#2c3e50', bg='#f0f0f0').pack(anchor='w')
-        tk.Label(header_frame, text="* Required fields | v2.0.1", 
+        tk.Label(header_frame, text="Steps 1-3: Extract → Unwrap → COM | * Required fields | v2.0.2", 
                 font=("Arial", 8), fg='#7f8c8d', bg='#f0f0f0').pack(anchor='w')
 
         # --- Common Parameters ---
@@ -231,15 +748,22 @@ class PipelineGUI(tk.Tk):
         dcd_entry.grid(row=1, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(dcd_entry, "Total number of trajectory DCD files to process (e.g., 100 for com_0.dat through com_99.dat)")
 
+        tk.Label(common, text="Number of Particles:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=2, column=0, sticky="e", padx=5, pady=5)
+        self.num_particles_var = tk.IntVar(value=1000)
+        particles_entry = tk.Entry(common, textvariable=self.num_particles_var, width=15, font=("Arial", 10),
+                                  relief='solid', borderwidth=1)
+        particles_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
+        create_tooltip(particles_entry, "Total number of molecules/particles in each trajectory file")
+
         # Global parallel processing settings
-        tk.Label(common, text="Max Workers:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=2, column=0, sticky="e", padx=5, pady=5)
+        tk.Label(common, text="Max Workers:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=3, column=0, sticky="e", padx=5, pady=5)
         self.max_workers_var = tk.IntVar(value=min(4, mp.cpu_count()))
         workers_entry = tk.Entry(common, textvariable=self.max_workers_var, width=15, font=("Arial", 10),
                                 relief='solid', borderwidth=1)
-        workers_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
+        workers_entry.grid(row=3, column=1, sticky="w", padx=5, pady=5)
         create_tooltip(workers_entry, "Number of CPU cores to use for parallel processing. Higher values = faster computation but more memory usage")
         tk.Label(common, text=f"(auto-detected: {mp.cpu_count()} cores)", 
-                font=("Arial", 9), bg='#f0f0f0', fg='#7f8c8d').grid(row=2, column=2, sticky="w", padx=5)
+                font=("Arial", 9), bg='#f0f0f0', fg='#7f8c8d').grid(row=3, column=2, sticky="w", padx=5)
 
         # --- Steps container ---
         steps = tk.Frame(self.scrollable_frame, bg='#f0f0f0')
@@ -376,7 +900,7 @@ class PipelineGUI(tk.Tk):
         com = tk.LabelFrame(com_frame, text="", relief='groove', borderwidth=1, bg='#f0f0f0')
         com.pack(fill="both", expand=True, padx=2, pady=2)
 
-        labels3 = ["INdir","OUTdir","Num particles","Atoms per particle","Mass list"]
+        labels3 = ["INdir","OUTdir","Atoms per particle","Mass list"]
         self.com_vars = []
         for i, lbl in enumerate(labels3, start=0):
             tk.Label(com, text=f"{lbl}:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=i, column=0, sticky="e", padx=5, pady=5)
@@ -408,111 +932,17 @@ class PipelineGUI(tk.Tk):
         
         self.toggle_frame(com, self.skip3.get())
 
-        # ----- STEP 4: Alpha2 MSD -----
-        self.skip4 = tk.BooleanVar(value=False)
-        alpha_frame = tk.Frame(steps, bg='#f0f0f0')
-        alpha_frame.grid(row=1, column=1, padx=5, pady=5, sticky="nw")
+        # ----- Open Calculations Window Button -----
+        calc_button_frame = tk.Frame(steps, bg='#f0f0f0')
+        calc_button_frame.grid(row=1, column=1, padx=5, pady=20, sticky="nw")
         
-        # Create title frame with skip checkbox
-        title_frame4 = tk.Frame(alpha_frame, bg='#f0f0f0')
-        title_frame4.pack(fill="x", padx=2, pady=2)
-        
-        tk.Label(title_frame4, text="Step 4: Non-Gaussian Parameter Calculation (Optimized)", 
-                font=("Arial", 11, "bold"), fg='#2c3e50', bg='#f0f0f0').pack(side="left")
-        skip4_check = tk.Checkbutton(title_frame4, text="Skip", variable=self.skip4,
-                                    command=lambda: self.toggle_frame(a2, self.skip4.get()),
-                                    font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50', 
-                                    selectcolor='#e8f4fd', activebackground='#f0f0f0')
-        skip4_check.pack(side="right", padx=10)
-        create_tooltip(skip4_check, "Skip non-Gaussian parameter calculation step if already completed")
-        
-        a2 = tk.LabelFrame(alpha_frame, text="", relief='groove', borderwidth=1, bg='#f0f0f0')
-        a2.pack(fill="both", expand=True, padx=2, pady=2)
-        
-        # Calculation type selection
-        tk.Label(a2, text="Calculation Type:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=0, column=0, sticky="e", padx=5, pady=5)
-        self.calc_type_var = tk.StringVar(value="alpha2_msd")
-        calc_frame = tk.Frame(a2, bg='#f0f0f0')
-        calc_frame.grid(row=0, column=1, sticky="w", padx=5, pady=5)
-        
-        # Create font that supports Unicode characters with multiple fallbacks
-        unicode_fonts = [
-            ("Segoe UI", 10),           # Windows
-            ("Arial Unicode MS", 10),   # macOS
-            ("DejaVu Sans", 10),        # Linux
-            ("Liberation Sans", 10),    # Linux
-            ("Arial", 10),              # Fallback
-            ("TkDefaultFont", 10)       # System default
-        ]
-        
-        unicode_font = None
-        for font in unicode_fonts:
-            try:
-                # Test if font can display Greek characters
-                test_widget = tk.Label(calc_frame, text="α", font=font)
-                unicode_font = font
-                test_widget.destroy()
-                break
-            except:
-                continue
-        
-        if unicode_font is None:
-            unicode_font = ("TkDefaultFont", 10)
-        
-        # Try Unicode first, fall back to ASCII if needed
-        try:
-            alpha2_text = "α₂(t) and MSD"
-            alpha_xz_text = "α_xz(t)"
-        except:
-            alpha2_text = "alpha2(t) and MSD"
-            alpha_xz_text = "alpha_xz(t)"
-        
-        alpha2_radio = tk.Radiobutton(calc_frame, text=alpha2_text, variable=self.calc_type_var, 
-                      value="alpha2_msd", font=unicode_font, bg='#f0f0f0', fg='#2c3e50',
-                      selectcolor='#e8f4fd', activebackground='#f0f0f0')
-        alpha2_radio.pack(side=tk.LEFT, padx=5)
-        create_tooltip(alpha2_radio, "Calculate standard non-Gaussian parameter alpha2(t) = 3<Dr^4>/(5<Dr^2>^2) - 1 and mean square displacement")
-        
-        alpha_xz_radio = tk.Radiobutton(calc_frame, text=alpha_xz_text, variable=self.calc_type_var, 
-                      value="alpha_xz", font=unicode_font, bg='#f0f0f0', fg='#2c3e50',
-                      selectcolor='#e8f4fd', activebackground='#f0f0f0')
-        alpha_xz_radio.pack(side=tk.LEFT, padx=5)
-        create_tooltip(alpha_xz_radio, "Calculate directional correlation parameter alpha_xz(t) = <Dx^2*Dz^2>/(<Dx^2>*<Dz^2>) - 1")
-        
-        labels4 = ["INdir","OUTdir","Num particles","Min frames"]
-        tooltips4 = [
-            "Input directory containing com_data folder with trajectory files",
-            "Output directory where results will be saved (MSDs and alpha2s folders)",
-            "Number of particles/molecules in each trajectory file",
-            "Minimum number of time frames required per trajectory file"
-        ]
-        
-        self.a2_vars = []
-        for i, (lbl, tooltip) in enumerate(zip(labels4, tooltips4)):
-            tk.Label(a2, text=f"{lbl}:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=i+1, column=0, sticky="e", padx=5, pady=5)
-            v = tk.StringVar()
-            entry = tk.Entry(a2, textvariable=v, width=40, font=("Arial", 10))
-            entry.grid(row=i+1, column=1, padx=5, pady=5)
-            create_tooltip(entry, tooltip)
-            self.a2_vars.append(v)
-        
-        # Advanced options
-        row_offset = len(labels4) + 1
-        tk.Label(a2, text="Chunk Processing:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset, column=0, sticky="e", padx=5, pady=5)
-        self.a2_chunk_processing = tk.BooleanVar(value=True)
-        chunk_check = tk.Checkbutton(a2, variable=self.a2_chunk_processing, font=("Arial", 10),
-                                    bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
-        chunk_check.grid(row=row_offset, column=1, sticky="w", padx=5, pady=5)
-        create_tooltip(chunk_check, "Process data in chunks for better memory efficiency with large datasets. Recommended for systems with >1000 particles.")
-        
-        tk.Label(a2, text="Validate Data:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=row_offset+1, column=0, sticky="e", padx=5, pady=5)
-        self.a2_validate = tk.BooleanVar(value=True)
-        validate_check = tk.Checkbutton(a2, variable=self.a2_validate, font=("Arial", 10),
-                                       bg='#f0f0f0', fg='#2c3e50', selectcolor='#e8f4fd', activebackground='#f0f0f0')
-        validate_check.grid(row=row_offset+1, column=1, sticky="w", padx=5, pady=5)
-        create_tooltip(validate_check, "Perform data validation checks during processing. Helps catch errors but adds slight overhead.")
-        
-        self.toggle_frame(a2, self.skip4.get())
+        calc_window_btn = tk.Button(calc_button_frame, text="Open Analysis Calculations →", 
+                                   command=self.open_calculations_window, 
+                                   bg="#3498db", fg="white", 
+                                   font=("Arial", 12, "bold"), padx=20, pady=15,
+                                   relief='raised', borderwidth=2, cursor='hand2')
+        calc_window_btn.pack(pady=10)
+        create_tooltip(calc_window_btn, "Open separate window for Alpha2/MSD and Dipole moment calculations")
 
         # --- SLURM parameters ---
         # Center the SLURM section horizontally
@@ -720,6 +1150,14 @@ class PipelineGUI(tk.Tk):
         self.output_full_path = None
         self.update_output_path_label()
 
+    def open_calculations_window(self):
+        """Open the calculations window for Alpha2/MSD and Dipole calculations"""
+        try:
+            calc_window = CalculationsWindow(self)
+            calc_window.focus()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open calculations window:\n{e}")
+
     def save_mainfile(self):
         path = filedialog.asksaveasfilename(
             defaultextension=".py", filetypes=[("Python","*.py"),("All","*")]
@@ -740,6 +1178,7 @@ class PipelineGUI(tk.Tk):
         data = {
             "baseDir": self.baseDir_var.get(),
             "num_dcd": self.num_dcd_var.get(),
+            "num_particles": self.num_particles_var.get(),
             "max_workers": self.max_workers_var.get(),
             "coords": [v.get() for v in self.coords_vars],
             "coords_parallel": self.coords_parallel.get(),
@@ -750,10 +1189,6 @@ class PipelineGUI(tk.Tk):
             "com": [v.get() for v in self.com_vars],
             "com_parallel": self.com_parallel.get(),
             "com_memmap": self.com_memmap.get(),
-            "a2": [v.get() for v in self.a2_vars],
-            "calc_type": self.calc_type_var.get(),
-            "a2_chunk_processing": self.a2_chunk_processing.get(),
-            "a2_validate": self.a2_validate.get(),
             "sbatch": [v.get() for v in self.sbatch_vars],
             "output_folder": self.output_folder_var.get(),
             "output_full_path": getattr(self, 'output_full_path', None),
@@ -774,6 +1209,7 @@ class PipelineGUI(tk.Tk):
 
         self.baseDir_var.set(data.get("baseDir",""))
         self.num_dcd_var.set(data.get("num_dcd",1))
+        self.num_particles_var.set(data.get("num_particles",1000))
         self.max_workers_var.set(data.get("max_workers", min(4, mp.cpu_count())))
 
         for v,val in zip(self.coords_vars, data.get("coords",[])):
@@ -791,12 +1227,6 @@ class PipelineGUI(tk.Tk):
             v.set(val)
         self.com_parallel.set(data.get("com_parallel", True))
         self.com_memmap.set(data.get("com_memmap", False))
-
-        for v,val in zip(self.a2_vars, data.get("a2",[])):
-            v.set(val)
-        self.calc_type_var.set(data.get("calc_type", "alpha2_msd"))
-        self.a2_chunk_processing.set(data.get("a2_chunk_processing", True))
-        self.a2_validate.set(data.get("a2_validate", True))
 
         for v,val in zip(self.sbatch_vars, data.get("sbatch",[])):
             v.set(val)
@@ -902,7 +1332,7 @@ def main():
     # Use parameters from GUI
     test_params = {{
         'num_dcd': {self.num_dcd_var.get()},
-        'num_particles': 500,  # Reasonable default for testing
+        'num_particles': {self.num_particles_var.get()},
         'num_frames': 200,     # Reasonable default for testing
         'max_workers': {self.max_workers_var.get()}
     }}
@@ -1208,10 +1638,11 @@ The script will submit all .sh files using sbatch commands."""
 
             # Step 3: COM Calculation
             if not self.skip3.get():
-                in3,out3,np_,ap,ml = [v.get().strip() for v in self.com_vars]
+                in3,out3,ap,ml = [v.get().strip() for v in self.com_vars]
                 masses = [float(x) for x in ml.split(",") if x.strip()]
                 use_parallel = self.com_parallel.get()
                 use_memmap = self.com_memmap.get()
+                num_particles = int(self.num_particles_var.get())
                 
                 lines.extend([
                     "    # Step 3: Center-of-Mass Calculation (Optimized)",
@@ -1232,7 +1663,7 @@ The script will submit all .sh files using sbatch commands."""
                     f"            INdir={repr(in3)},",
                     f"            OUTdir={repr(out3)},",
                     f"            num_dcd={nd},",
-                    f"            prtcl_num=int({np_}),",
+                    f"            prtcl_num={num_particles},",
                     f"            prtcl_atoms=int({ap}),",
                     f"            particl_mass={masses},",
                     f"            max_workers={max_workers if use_parallel else 1},",
@@ -1249,85 +1680,7 @@ The script will submit all .sh files using sbatch commands."""
                     ""
                 ])
 
-            # Step 4: Non-Gaussian Parameter Calculation
-            if not self.skip4.get():
-                in4,out4,np2,minf = [v.get().strip() for v in self.a2_vars]
-                calc_type = self.calc_type_var.get()
-                chunk_processing = self.a2_chunk_processing.get()
-                validate_data = self.a2_validate.get()
-                
-                if calc_type == "alpha2_msd":
-                    lines.extend([
-                        "    # Step 4: α₂(t) and MSD Calculation (Optimized)",
-                        "    print('\\nStep 4: Computing MSD and α₂(t) parameter...')",
-                        "    try:",
-                        "        # Try importing compiled version first, fallback to Python version",
-                        "        try:",
-                        "            from main_functions.alpha2_MSD import a2_MSD",
-                        "        except (ImportError, AttributeError) as import_err:",
-                        "            print(f'Warning: Compiled version failed ({import_err}), using Python version')",
-                        "            import importlib.util",
-                        "            spec = importlib.util.spec_from_file_location('alpha2_MSD', 'main_functions/alpha2_MSD.py')",
-                        "            alpha2_module = importlib.util.module_from_spec(spec)",
-                        "            spec.loader.exec_module(alpha2_module)",
-                        "            a2_MSD = alpha2_module.a2_MSD",
-                        f"        results_alpha2 = a2_MSD(",
-                        f"            baseDir={repr(bd)},",
-                        f"            INdir={repr(in4)},",
-                        f"            OUTdir={repr(out4)},",
-                        f"            num_dcd={nd},",
-                        f"            partcl_num=int({np2}),",
-                        f"            numFrames=int({minf}),",
-                        f"            chunk_processing={chunk_processing},",
-                        f"            validate_data={validate_data}",
-                        "        )",
-                        "        all_results['alpha2_MSD'] = results_alpha2",
-                        "        if results_alpha2['success'] > 0:",
-                        "            print(f'✓ α₂(t) and MSD calculation completed using {results_alpha2[\"success\"]} trajectory files')",
-                        "            print(f'  Data quality: {results_alpha2.get(\"data_quality\", \"N/A\")}')",
-                        "        else:",
-                        "            print('✗ α₂(t) and MSD calculation failed')",
-                        "    except Exception as e:",
-                        "        print(f'✗ α₂(t) and MSD calculation failed: {e}')",
-                        "        sys.exit(1)",
-                        ""
-                    ])
-                else:  # alpha_xz
-                    lines.extend([
-                        "    # Step 4: α_xz(t) Calculation (Optimized)",
-                        "    print('\\nStep 4: Computing α_xz(t) parameter...')",
-                        "    try:",
-                        "        # Try importing compiled version first, fallback to Python version",
-                        "        try:",
-                        "            from main_functions.axz import alpha_xz",
-                        "        except (ImportError, AttributeError) as import_err:",
-                        "            print(f'Warning: Compiled version failed ({import_err}), using Python version')",
-                        "            import importlib.util",
-                        "            spec = importlib.util.spec_from_file_location('axz', 'main_functions/axz.py')",
-                        "            axz_module = importlib.util.module_from_spec(spec)",
-                        "            spec.loader.exec_module(axz_module)",
-                        "            alpha_xz = axz_module.alpha_xz",
-                        f"        results_alpha_xz = alpha_xz(",
-                        f"            baseDir={repr(bd)},",
-                        f"            INdir={repr(in4)},",
-                        f"            OUTdir={repr(out4)},",
-                        f"            num_dcd={nd},",
-                        f"            partcl_num=int({np2}),",
-                        f"            numFrames=int({minf}),",
-                        f"            chunk_processing={chunk_processing},",
-                        f"            validate_data={validate_data}",
-                        "        )",
-                        "        all_results['alpha_xz'] = results_alpha_xz",
-                        "        if results_alpha_xz['success'] > 0:",
-                        "            print(f'✓ α_xz(t) calculation completed using {results_alpha_xz[\"success\"]} trajectory files')",
-                        "            print(f'  Data quality: {results_alpha_xz.get(\"data_quality\", \"N/A\")}')",
-                        "        else:",
-                        "            print('✗ α_xz(t) calculation failed')",
-                        "    except Exception as e:",
-                        "        print(f'✗ α_xz(t) calculation failed: {e}')",
-                        "        sys.exit(1)",
-                        ""
-                    ])
+
 
             lines.extend([
                 "    # Summary",
