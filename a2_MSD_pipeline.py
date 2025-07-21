@@ -655,7 +655,7 @@ class PipelineGUI(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("MD Dynamics Analysis Pipeline - Data Preprocessing")
-        self.geometry("1050x900")  # Smaller size since we removed Step 4
+        self.geometry("1200x750")  # Wider and shorter for better layout
         self.configure(bg='#f0f0f0')  # Light gray background for modern look
         
         # Configure ttk styling for better appearance
@@ -795,7 +795,7 @@ class PipelineGUI(tk.Tk):
         for i, lbl in enumerate(labels1, start=0):
             tk.Label(coords, text=f"{lbl}:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=i, column=0, sticky="e", padx=5, pady=5)
             v = tk.StringVar()
-            ent = tk.Entry(coords, textvariable=v, width=30, font=("Arial", 10), relief='solid', borderwidth=1)
+            ent = tk.Entry(coords, textvariable=v, width=25, font=("Arial", 10), relief='solid', borderwidth=1)
             ent.grid(row=i, column=1, padx=5, pady=5)
             if lbl=="VMD path":
                 tk.Button(coords, text="Browse...", command=self.browse_vmd, font=("Arial", 10),
@@ -844,7 +844,7 @@ class PipelineGUI(tk.Tk):
         for i, lbl in enumerate(labels2, start=0):
             tk.Label(unwrap, text=f"{lbl}:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=i, column=0, sticky="e", padx=5, pady=5)
             v = tk.StringVar()
-            ent = tk.Entry(unwrap, textvariable=v, width=30, font=("Arial", 10), relief='solid', borderwidth=1)
+            ent = tk.Entry(unwrap, textvariable=v, width=25, font=("Arial", 10), relief='solid', borderwidth=1)
             ent.grid(row=i, column=1, padx=5, pady=5)
             if lbl=="XSC file":
                 tk.Button(unwrap, text="Browse...", command=self.browse_xsc, font=("Arial", 10),
@@ -858,7 +858,7 @@ class PipelineGUI(tk.Tk):
         for j,lbl in enumerate(["Interval (optional)","Stride (optional)"], start=len(labels2)):
             tk.Label(unwrap, text=f"{lbl}:", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=j, column=0, sticky="e", padx=5, pady=5)
             v = tk.StringVar()
-            ent = tk.Entry(unwrap, textvariable=v, width=30, font=("Arial", 10), relief='solid', borderwidth=1)
+            ent = tk.Entry(unwrap, textvariable=v, width=25, font=("Arial", 10), relief='solid', borderwidth=1)
             ent.grid(row=j, column=1, padx=5, pady=5)
             self.unwrap_opt.append(v)
         
@@ -882,7 +882,7 @@ class PipelineGUI(tk.Tk):
         # ----- STEP 3: COM Calculation -----
         self.skip3 = tk.BooleanVar(value=False)
         com_frame = tk.Frame(steps, bg='#f0f0f0')
-        com_frame.grid(row=1, column=0, padx=5, pady=5, sticky="nw")
+        com_frame.grid(row=0, column=2, padx=5, pady=5, sticky="nw")
         
         # Create title frame with skip checkbox
         title_frame3 = tk.Frame(com_frame, bg='#f0f0f0')
@@ -905,7 +905,7 @@ class PipelineGUI(tk.Tk):
         for i, lbl in enumerate(labels3, start=0):
             tk.Label(com, text=f"{lbl}:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=i, column=0, sticky="e", padx=5, pady=5)
             v = tk.StringVar()
-            ent = tk.Entry(com, textvariable=v, width=30, font=("Arial", 10), relief='solid', borderwidth=1)
+            ent = tk.Entry(com, textvariable=v, width=25, font=("Arial", 10), relief='solid', borderwidth=1)
             ent.grid(row=i, column=1, padx=5, pady=5)
             if lbl=="Mass list":
                 tk.Label(com, text='e.g., "16.0,1.008,1.008"', font=("Arial", 7), bg='#f0f0f0', fg='#7f8c8d').grid(
@@ -932,17 +932,7 @@ class PipelineGUI(tk.Tk):
         
         self.toggle_frame(com, self.skip3.get())
 
-        # ----- Open Calculations Window Button -----
-        calc_button_frame = tk.Frame(steps, bg='#f0f0f0')
-        calc_button_frame.grid(row=1, column=1, padx=5, pady=20, sticky="nw")
-        
-        calc_window_btn = tk.Button(calc_button_frame, text="Open Analysis Calculations →", 
-                                   command=self.open_calculations_window, 
-                                   bg="#3498db", fg="white", 
-                                   font=("Arial", 12, "bold"), padx=20, pady=15,
-                                   relief='raised', borderwidth=2, cursor='hand2')
-        calc_window_btn.pack(pady=10)
-        create_tooltip(calc_window_btn, "Open separate window for Alpha2/MSD and Dipole moment calculations")
+
 
         # --- SLURM parameters ---
         # Center the SLURM section horizontally
@@ -977,7 +967,7 @@ class PipelineGUI(tk.Tk):
                 v.set(str(self.max_workers_var.get()))  # Default to max_workers
             elif lbl == "Tasks":
                 v.set("1")  # Usually 1 for this type of job
-            entry = tk.Entry(sb, textvariable=v, width=30, font=("Arial", 10))
+            entry = tk.Entry(sb, textvariable=v, width=25, font=("Arial", 10))
             entry.grid(row=i, column=1, sticky="w", padx=5, pady=5)
             create_tooltip(entry, tooltip)
             self.sbatch_vars.append(v)
@@ -992,7 +982,7 @@ class PipelineGUI(tk.Tk):
         self.output_folder_var = tk.StringVar(value="pipeline_run")
         # Add callback to clear browse path when user manually types folder name
         self.output_folder_var.trace('w', self.on_folder_name_changed)
-        folder_entry = tk.Entry(files, textvariable=self.output_folder_var, width=60, font=("Arial", 10))
+        folder_entry = tk.Entry(files, textvariable=self.output_folder_var, width=50, font=("Arial", 10))
         folder_entry.grid(row=0, column=1, padx=5, pady=5)
         create_tooltip(folder_entry, "Name of the folder to contain all generated files and main_functions. Use the Browse button to select a specific location, or it will be created in the current directory. This self-contained folder can be uploaded directly to your target computer without additional setup.")
         tk.Button(files, text="Browse...", command=self.browse_output_folder, font=("Arial", 10)).grid(
@@ -1006,7 +996,7 @@ class PipelineGUI(tk.Tk):
         
         tk.Label(files, text="Main script file:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=1, column=0, sticky="e", padx=5, pady=5)
         self.mainfile_var = tk.StringVar()
-        main_entry = tk.Entry(files, textvariable=self.mainfile_var, width=60, font=("Arial", 10))
+        main_entry = tk.Entry(files, textvariable=self.mainfile_var, width=50, font=("Arial", 10))
         main_entry.grid(row=1, column=1, padx=5, pady=5)
         create_tooltip(main_entry, "Python script filename (will be created in output folder)")
         tk.Button(files, text="Save As...", command=self.save_mainfile, font=("Arial", 10)).grid(
@@ -1015,7 +1005,7 @@ class PipelineGUI(tk.Tk):
         
         tk.Label(files, text="Submit script file:*", font=("Arial", 10), bg='#f0f0f0', fg='#2c3e50').grid(row=2, column=0, sticky="e", padx=5, pady=5)
         self.submitfile_var = tk.StringVar()
-        submit_entry = tk.Entry(files, textvariable=self.submitfile_var, width=60, font=("Arial", 10))
+        submit_entry = tk.Entry(files, textvariable=self.submitfile_var, width=50, font=("Arial", 10))
         submit_entry.grid(row=2, column=1, padx=5, pady=5)
         create_tooltip(submit_entry, "SLURM batch script filename (will be created in output folder)")
         tk.Button(files, text="Save As...", command=self.save_submitfile, font=("Arial", 10)).grid(
@@ -1032,6 +1022,14 @@ class PipelineGUI(tk.Tk):
                  relief='raised', borderwidth=2, cursor='hand2')
         generate_btn.pack(side=tk.LEFT, padx=10)
         create_tooltip(generate_btn, "Generate the main Python script and SLURM submission script based on your configuration")
+        
+        calc_window_btn = tk.Button(generate_frame, text="Open Analysis Calculations", 
+                                   command=self.open_calculations_window, 
+                                   bg="#3498db", fg="white", 
+                                   font=("Arial", 11, "bold"), padx=25, pady=10,
+                                   relief='raised', borderwidth=2, cursor='hand2')
+        calc_window_btn.pack(side=tk.LEFT, padx=10)
+        create_tooltip(calc_window_btn, "Open separate window for Alpha2/MSD and Dipole moment calculations")
         
         benchmark_btn = tk.Button(generate_frame, text="Benchmark Performance", 
                  command=self.generate_benchmark, bg="#5dade3", fg="black",
