@@ -1,477 +1,135 @@
-# a2_MSD Pipeline App - Optimized Version v1.2
+# a2_MSD Pipeline
 
-A comprehensive **molecular dynamics analysis pipeline** for generating **Mean‑Square‑Displacement (MSD)**, **non‑Gaussian parameters**, and **dipole moment** analyses from NAMD DCD trajectories—now with **3-10x performance improvements**, modular workflow, and enhanced reliability.
-
-**Data Processing Calculations:**
-- **Coordinates Extract**    : Extracting the VMD-selected atom coordinates.
-- **Continuize Coordinates** : Eliminating the PBC cell size constraints on the displacements (not the same as VMD unwrapping functions).
-- **Centers of Masses**      : Calculate and save the individual centers of masses of tagged molecules.
-
-
-**Available Calculations:**
-- **α₂(t) and MSD**    : Standard non-Gaussian parameter α₂(t) = 3⟨Δr⁴⟩/(5⟨Δr²⟩²) - 1 with mean square displacement.
-- **α_xz(t)**          : Displacerment anisotropy parameter α_ij(t) = ⟨Δi²·Δj²⟩/(⟨Δi²⟩·⟨Δj²⟩) - 1, (i,j -> x,y,z).
-- **Individual Dipole**: Calculate and save the individual dipole moments (vector and magnitude) of tagged particles.
-- **Collective Dipole**: Extract the collective dipole moment (vector and magnitude) of any part of the system (VMD-selected atoms) of tagged particles, e.g. "protein", "protein or resname resname HEME and resid 60".
-
-## 🚀 **New in Optimized Version v1.2**
-
-- **🧠 Intelligent Optimization**: Auto-calculates optimal settings based on trajectory characteristics
-- **🎯 Smart Memory Management**: Prevents OOM errors with trajectory-aware chunk sizing
-- **📊 Custom DCD Selection**: Process specific DCD ranges (e.g., "4-10" or "4-6,8-10")
-- **🖥️ Windows Support**: Now available for Linux, macOS (Intel & ARM), and Windows platforms
-- **🎯 Modular Interface**: Separate windows for data preprocessing and calculations
-- **⚡ Dipole Calculations**: New optimized dipole moment analysis with parallel processing
-- **📊 Centralized Parameters**: Common parameters (num_dcds, num_particles) shared across all calculations
-- **3-10x Performance Boost**: Highly optimized pipeline functions with parallel processing
-- **Scrollable GUI**: Responsive interface that works on any screen size
-- **Enhanced Reliability**: Comprehensive error handling and data validation
-- **Memory Optimization**: Efficient processing for large trajectories
-- **Performance Benchmarking**: Built-in testing and comparison tools
+A comprehensive molecular dynamics analysis pipeline for generating **Mean Square Displacement (MSD)**, **non-Gaussian parameters**, and **dipole moment** analyses from NAMD DCD trajectories.
 
 ---
 
-## Available Formats
+## Contents
 
-| Artifact                                                | Description                                                       | Platform                           |
-| ------------------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------- |
-| `a2_MSD_pipeline.py` **(GUI + Compiled Modules)**      | **Main GUI with optimized compiled modules (.so files)**         | **Linux • macOS • Windows**       |
-| `alpha2_MSD_pip_Linux`                                  | Stand‑alone Linux executable                                     | Linux                              |
-| `alpha2_MSD_pip_mac_x86_64`                            | Stand‑alone macOS executable (Intel)                             | macOS Intel                        |
-| `alpha2_MSD_pip_mac_arm64`                             | Stand‑alone macOS executable (Apple Silicon)                     | macOS ARM                          |
-| `alpha2_MSD_pip_Windows.exe`                           | Stand‑alone Windows executable                                   | Windows                            |
+- **Data Processing Pipeline**: 
+  - Coordinate extraction from DCD files
+  - Coordinate unwrapping (periodic boundary condition removal)
+  - Center-of-mass calculation
+  
+- **Analysis Calculations**:
+  - **α₂(t) and MSD**: Standard non-Gaussian parameter α₂(t) = 3⟨Δr⁴⟩/(5⟨Δr²⟩²) - 1 with mean square displacement
+  - **α_xz(t)**: Directional correlation parameter α_ij(t) = ⟨Δi²·Δj²⟩/(⟨Δi²⟩·⟨Δj²⟩) - 1
+  - **Individual Dipole Moments**: Calculate and save individual dipole moments (vector and magnitude) of molecules
+  - **Collective Dipole Moments**: Extract collective dipole moments of system components (e.g., protein, specific residues)
+
+- **GUI Interface**: User-friendly graphical interface for pipeline configuration and execution
+- **Executable Version**: Standalone executable for Linux systems
 
 ---
 
-## Quick Start
+## What Can Be Done With It
 
-### **Option 1: Source Version**
+This pipeline enables researchers to:
+
+1. **Analyze molecular motion** through mean square displacement calculations
+2. **Quantify non-Gaussian behavior** using the α₂(t) parameter to detect deviations from normal diffusion
+3. **Study directional correlations** with α_xz(t) to understand anisotropic motion
+4. **Calculate dipole moments** for both individual molecules and collective system properties
+5. **Process large trajectory datasets** from molecular dynamics simulations
+6. **Generate publication-ready data** for diffusion, dynamics, and electrostatic analyses
+
+---
+
+## How It Works
+
+The pipeline processes NAMD DCD trajectory files through a systematic workflow:
+
+### **Data Processing Steps:**
+1. **Coordinate Extraction**: Uses VMD to extract atomic coordinates from DCD files based on user-defined selections
+2. **Coordinate Unwrapping**: Removes periodic boundary condition artifacts to obtain continuous molecular trajectories
+3. **Center-of-Mass Calculation**: Computes molecular centers of mass for multi-atom molecules
+
+### **Analysis Calculations:**
+- **MSD/α₂(t)**: Analyzes displacement statistics to calculate mean square displacements and detect non-Gaussian diffusion behavior
+- **α_xz(t)**: Computes directional correlation functions to study anisotropic motion
+- **Dipole Analysis**: Calculates molecular dipole moments using atomic charges and coordinates, with options for individual molecules or collective system properties
+
+The pipeline handles the mathematical calculations, file I/O, and data organization automatically, allowing researchers to focus on scientific interpretation of results.
+
+---
+
+## How to Use
+
+### **Option 1: Graphical Interface (Recommended)**
 
 ```bash
-# 1 – Clone the repository
-$ git clone https://github.com/AdamPirnia/a2_MSD_pipeline.git
-$ cd a2_MSD_pipeline
+# Clone the repository
+git clone https://github.com/AdamPirnia/a2_MSD_pipeline.git
+cd a2_MSD_pipeline
 
-# 2 – Install dependencies (if needed)
-$ sudo apt update && sudo apt install python3-tk -y  # Ubuntu/Debian
-# or
-$ brew install python-tk  # macOS with Homebrew
+# Install dependencies (if needed)
+sudo apt update && sudo apt install python3-tk -y  # Ubuntu/Debian
 
-# 3 – Run the optimized GUI
-$ python3 a2_MSD_pipeline.py
+# Run the GUI
+python3 a2_MSD_pipeline.py
 ```
 
-### **Option 2: Standalone Executable**
+**Using the GUI:**
+1. **Set Common Parameters**: Specify base directory, number of DCD files, and number of particles
+2. **Configure Data Processing**: Set up coordinate extraction, unwrapping, and COM calculation steps
+3. **Choose Analysis Type**: Select α₂(t)/MSD, α_xz(t), or dipole moment calculations
+4. **Generate Scripts**: Create customized analysis scripts for your system
+5. **Execute**: Run the generated scripts locally or on computing clusters
 
-**🖱️ Double-Click to Run (All Platforms):**
-Simply double-click the appropriate executable file for your operating system - no additional setup required!
-
-**Command Line Alternative:**
-```bash
-# Linux
-$ chmod +x alpha2_MSD_pip_Linux
-$ ./alpha2_MSD_pip_Linux
-
-# macOS 
-$ xattr -dr com.apple.quarantine alpha2_MSD_pip_mac_arm64  # ARM CPUs
-$ chmod +x alpha2_MSD_pip_mac_arm64 
-$ ./alpha2_MSD_pip_mac_arm64 
-
-# or for Intel CPUs
-$ xattr -dr com.apple.quarantine alpha2_MSD_pip_mac_x86_64
-$ chmod +x alpha2_MSD_pip_mac_x86_64
-$ ./alpha2_MSD_pip_mac_x86_64
-
-# Windows
-# Simply double-click alpha2_MSD_pip_Windows.exe
-# or run from command prompt:
-> alpha2_MSD_pip_Windows.exe
-```
-
----
-
-## 🎯 **GUI Example**
-
-![An example](example.png)
-
-### **Main Window: Data Preprocessing Pipeline**
-The main window focuses on **Steps 1-3** (data preparation):
-
-1. **Common Parameters** – Base directory, **number of DCDs**, **number of particles**
-2. **🧠 Trajectory Characteristics** – Input file size, frames, atoms, memory, and worker count for intelligent optimization
-   - **Max Workers** – CPU cores for parallel processing (used in chunk size optimization)
-   - **Auto-Calculate Settings** – Click "🧠 Calculate Optimal Settings" for automatic parameter optimization
-   - **Smart Recommendations** – Prevents OOM errors and optimizes chunk sizes based on your data
-3. **Step 1: Coordinate Extraction** – Extract raw coordinates from DCD files using VMD
-   - **Custom DCD Selection** – Process specific ranges (e.g., "4-10" or "4-6,8-10") 
-4. **Step 2: Unwrap Coordinates** – Remove periodic boundary condition artifacts
-   - **Intelligent Chunk Sizing** – Auto-optimized based on trajectory characteristics and worker count
-5. **Step 3: Center-of-Mass Calculation** – Compute molecular centers of mass
-   - **Memory-Aware Processing** – Smart memory mapping and worker allocation
-6. **SLURM Configuration** – Partition, wall‑time, CPUs (auto-populated), email
-7. **Generate Pipeline** – Create optimized preprocessing scripts
-
-### **Calculations Window: Analysis Modules**
-Click **"Open Analysis Calculations →"** to access the dedicated calculations interface:
-
-#### **📊 Alpha2/MSD Tab:**
-- **Calculation Type Selection** – Choose between α₂(t)/MSD or α_xz(t) analysis
-- **Input/Output Configuration** – Directories and analysis parameters
-- **Advanced Options** – Chunk processing, data validation, parallel optimization
-
-#### **⚡ Dipole Moments Tab:**
-- **Input Configuration** – Coordinate and COM data directories
-- **Molecular Parameters** – Atomic charges, atoms per molecule, processing stride
-- **Optimization Settings** – Parallel processing, memory management, validation
-
-### **Workflow Benefits**
-- **🧠 Intelligent Optimization**: Auto-calculates optimal settings to prevent memory issues and timeouts
-- **📊 Custom DCD Processing**: Select specific DCDs to process in manageable batches
-- **🎯 Focused Interface**: Separate concerns for preprocessing vs. analysis
-- **📊 Centralized Parameters**: Set once, use everywhere (num_dcds, num_particles)
-- **🔧 Modular Execution**: Run preprocessing first, then choose specific analyses
-- **⚡ Independent Scripts**: Generate separate scripts for different calculation types
-- **✅ Skip Functionality**: Enable/disable individual steps and calculations
-- **📈 Comprehensive Tooltips**: Detailed guidance for all parameters
-
----
-
-## 🚀 **Running the Generated Pipeline**
-
-The modular design generates separate, focused scripts for different purposes:
-
-### **Step 1: Data Preprocessing**
-Run the preprocessing pipeline first:
+### **Option 2: Standalone Executable (Linux Only)**
 
 ```bash
-# Navigate to the generated folder
-$ cd your_output_folder_name
-
-# Execute preprocessing (Steps 1-3)
-$ python your_preprocessing_script.py
-# or submit to SLURM
-$ sbatch your_preprocessing_submit.sh
+# Download and run the executable
+chmod +x MDisp_analysis_Linux
+./MDisp_analysis_Linux
 ```
 
-### **Step 2: Analysis Calculations**
-After preprocessing completes, user can generate and run different analysis on their system. 
-
-
-### **Option: Supercomputer Execution**
-Copy the entire generated folder to your target supercomputer:
-
-```bash
-# 1. Copy the complete self-contained folder
-$ scp -r your_output_folder_name username@supercomputer.edu:~/
-
-# 2. Log in and navigate
-$ ssh username@supercomputer.edu
-$ cd your_output_folder_name
-
-# 3. Submit jobs sequentially or use provided multi-run scripts
-$ sbatch preprocessing.sh
-# Wait for completion, then:
-$ sbatch alpha2_calculation.sh
-$ sbatch dipole_calculation.sh
-```
-
-**🎯 Key Points:**
-- **Self-contained**: Each generated folder includes everything needed (`main_functions`, scripts, etc.)
-- **Modular**: Run preprocessing once, then any combination of analyses
-- **Portable**: Simply copy the entire folder - no additional setup required
-- **Flexible**: Execute locally or submit to any SLURM-based supercomputer
+### **Requirements**
+- **Python 3.6+** with NumPy and tkinter
+- **VMD** (Visual Molecular Dynamics) for coordinate extraction
+- **Input files**: NAMD DCD trajectories, PSF structure files, atomic charges (for dipole calculations)
 
 ---
 
-## 🧠 **Intelligent Optimization System**
+## Platform Availability
 
-### **Trajectory-Aware Auto-Optimization**
-The new intelligent optimization system analyzes your trajectory characteristics to automatically calculate optimal processing parameters, preventing memory exhaustion and timeouts.
-
-#### **Input Requirements:**
-```
-Single DCD file size (MB):    e.g., 24,000 MB (24 GB)
-Frames per DCD:              e.g., 200,000 frames  
-Atoms being extracted:       e.g., 3,000 atoms (1000 molecules × 3 atoms each)
-Available memory (GB):       e.g., 240 GB
-Max Workers:                 e.g., 4 cores (used for chunk size optimization)
-Coordinate precision:        single (50% smaller files) or double (full precision)
-```
-
-#### **Auto-Calculated Optimizations:**
-- **🎯 Optimal Chunk Size**: Memory-efficient frame processing to prevent OOM errors
-- **⚙️ Worker Count**: Balanced parallel processing based on memory constraints
-- **💾 SLURM Memory**: Precise memory requests with safety buffers for all pipeline steps
-- **📊 Batch Recommendations**: Suggested DCD processing batch sizes
-- **⏱️ Time Estimates**: Predicted processing times per DCD file
-- **💾 File Size Prediction**: Accurate output file size estimates with precision control
-- **🔧 Precision Optimization**: Single precision reduces file sizes by ~50% with minimal accuracy loss
-
-#### **Smart DCD Selection:**
-Process trajectories in manageable batches using flexible selection syntax:
-- **Single DCD**: `"5"` → Process only DCD 5
-- **Range**: `"4-10"` → Process DCDs 4 through 10
-- **Multiple Ranges**: `"4-6,8-10"` → Process DCDs 4-6 and 8-10
-- **Mixed Selection**: `"0-2,5,7-9"` → Process DCDs 0-2, 5, and 7-9
-
-#### **Memory Analysis Example:**
-```
-📊 MEMORY ANALYSIS:
-Expected output file size: 42.0 GB (double precision)
-Memory per frame: 0.39 MB
-Memory per worker: 63,747 MB
-VMD memory estimate: 61,440 MB
-
-📈 PEAK MEMORY BY STEP:
-Step 1 (VMD extraction): 102.0 GB
-Step 2 (Unwrapping): 154.0 GB  
-Step 3 (COM calculation): 33.6 GB
-Total estimated: 157.0 GB
-
-⚙️ RECOMMENDED SETTINGS:
-Optimal chunk size: 164,583 frames
-Max workers: 1
-SLURM memory request: 219 GB
-Coordinate precision: single (21.0 GB, ~50% smaller files)
-
-⏱️ TIME ESTIMATES:
-Estimated time per DCD: 1014.0 hours
-Recommended batch size: 2 DCDs at once
-```
-
-#### **How to Use:**
-1. **Fill in trajectory characteristics** in the GUI (including desired worker count)
-2. **Click "🧠 Calculate Optimal Settings"**
-3. **Review detailed analysis** in the popup window
-4. **Use recommended batch size** with DCD Selection feature
-5. **Generate optimized scripts** with auto-applied settings
-
-**Result**: Eliminates guesswork and provides scientifically calculated parameters for reliable, efficient processing.
-
----
-
-## What the Optimized Pipeline Does
-
-### **Data Preprocessing (Main Window)**
-| Step | Task                                            | **New Optimizations**                                    | Output             |
-| ---- | ----------------------------------------------- | -------------------------------------------------------- | ------------------ |
-|  1   | Extract raw coordinates (`coordinates_extract`) | **Parallel VMD execution, timeout protection** | User‑chosen OUTdir |
-|  2   | Unwrap PBC (`unwrap_coords`)                    | **Chunked processing, parallel files, auto-scaling**     | User‑chosen OUTdir |
-|  3   | Center‑of‑Mass calc (`COM_calc`)                | **Vectorized NumPy operations, memory mapping, 10x faster** | User‑chosen OUTdir |
-
-### **Analysis Calculations (Calculations Window)**
-| Analysis | Calculation Type | **New Optimizations** | Output |
-| -------- | --------------- | --------------------- | ------- |
-| **α₂(t) and MSD** | Standard non-Gaussian parameter | **Dual calculation modes, numerical stability, enhanced validation** | User‑chosen OUTdir |
-| **α_xz(t)** | Directional correlation parameter | **Optimized anisotropic analysis framework** | User‑chosen OUTdir |
-| **Dipole Moments** | Molecular dipole vectors & magnitudes | **Parallel processing, vectorized operations, Debye units** | User‑chosen OUTdir |
-
-### **Performance Improvements**
-- **coordinates_extract**: Parallel processing with timeout protection, 3-5x faster
-- **unwrap_coords**: Memory-efficient chunked processing, 3-5x faster
-- **COM_calc**: Highly optimized vectorized operations, ~10x performance boost
-- **alpha2_MSD**: Enhanced numerical stability for reliable calculations
-- **alpha_xz**: New directional correlation analysis with optimized framework
-- **dipole_functions**: **NEW** - Vectorized dipole calculations with parallel file processing
-
----
-
-## 📊 **Performance Benchmarking**
-
-The optimized pipeline includes built-in benchmarking tools:
-
-```bash
-# Generate benchmark script from GUI
-1. Open a2_MSD_pipeline.py
-2. Fill in common parameters (base directory, num_dcds, num_particles)
-3. Click "Benchmark Performance"
-4. Run the generated benchmark script
-
-# Manual benchmarking
-$ python3 performance_benchmark.py
-```
-
-**Expected Performance Gains:**
-- Small systems (< 1000 particles): **3-5x faster**
-- Medium systems (1000-10000 particles): **5-8x faster**  
-- Large systems (> 10000 particles): **8-10x faster**
-- **Dipole calculations**: **5-10x faster** with parallel processing
-
----
-
-## Requirements
-
-### **GUI + Compiled Modules Version**
-- **Python 3.6+** with standard library
-- **tkinter**: GUI framework (`python3-tk` package on Linux, included with Python on Windows/macOS)
-- **NumPy**: For optimized calculations (auto-installed with most Python distributions)
-- **VMD**: Required for coordinate extraction (Step 1)
-- **Compiled modules**: Pre-compiled .so files included for optimal performance
-
-### **Executable Version**
-- No additional requirements—everything is bundled
-- Available for **Linux**, **macOS (Intel & ARM)**, and **Windows**
-
----
-
-## 🛠 **Advanced Configuration**
-
-<dl>
-  <dt><strong>Common Parameters</strong></dt>
-  <dd>
-    Centralized configuration shared across all calculations:<br>
-    &emsp;• <code>Number of DCDs</code> ← total trajectory files to process<br>
-    &emsp;• <code>Number of Particles</code> ← molecules per trajectory file
-  </dd>
-
-  <dt><strong>🧠 Intelligent Optimization</strong></dt>
-  <dd>
-    Auto-calculate optimal settings based on trajectory characteristics:<br>
-    &emsp;• <code>File Size (MB)</code> ← single DCD file size for memory estimation<br>
-    &emsp;• <code>Frames per DCD</code> ← frames in each trajectory file<br>
-    &emsp;• <code>Atoms being extracted</code> ← atoms extracted in Step 1 (subset of total system)<br>
-    &emsp;• <code>Coordinate precision</code> ← single (50% smaller files) or double (full precision)<br>
-    &emsp;• <code>Available Memory (GB)</code> ← system memory for optimization<br>
-    &emsp;• <code>Max Workers</code> ← CPU cores for parallel processing (affects chunk size calculation)<br>
-    &emsp;• <code>🧠 Calculate Optimal Settings</code> ← auto-optimize chunk size based on all parameters
-  </dd>
-
-  <dt><strong>📊 Custom DCD Selection</strong></dt>
-  <dd>
-    Process specific DCD files in manageable batches:<br>
-    &emsp;• <code>DCD Selection: "4-10"</code> ← process DCDs 4 through 10<br>
-    &emsp;• <code>DCD Selection: "4-6,8-10"</code> ← process DCDs 4-6 and 8-10<br>
-    &emsp;• <code>DCD Selection: "0-2,5,7-9"</code> ← mixed ranges and single files<br>
-    &emsp;• <em>Leave empty to process all DCDs</em>
-  </dd>
-
-  <dt><strong>Chunk Processing & Workers</strong></dt>
-  <dd>
-    Optimized memory management for large trajectories (configured in Step 2):<br>
-    &emsp;• <code>Max Workers</code> ← CPU cores for parallel processing (affects memory usage)<br>
-    &emsp;• <code>Chunk Size: auto</code> ← automatically optimizes chunk size based on workers and memory<br>
-    &emsp;• <code>Chunk Size: 5000</code> ← process 5000 frames at a time<br>
-    &emsp;• <em>Chunk size is now optimized based on your worker count for best memory efficiency</em>
-  </dd>
-
-  <dt><strong>Dipole Calculations</strong></dt>
-  <dd>
-    Molecular dipole moment analysis:<br>
-    &emsp;• <code>Atomic Charges</code> ← comma-separated list (e.g., -0.8476,0.4238,0.4238)<br>
-    &emsp;• <code>Atoms per Particle</code> ← must match number of charges<br>
-    &emsp;• <code>Stride</code> ← frame skipping for faster processing<br>
-    &emsp;• <code>Parallel Processing</code> ← multi-core dipole calculations
-  </dd>
-
-  <dt><strong>Memory Mapping</strong></dt>
-  <dd>
-    For very large coordinate files:<br>
-    &emsp;• <code>Use Memory Map: ✓</code> ← reduces RAM usage for massive datasets
-  </dd>
-
-  <dt><strong>VMD Path</strong></dt>
-  <dd>
-    Specify VMD executable location:<br>
-    &emsp;• <code>VMD path: /usr/local/bin/vmd</code><br>
-    &emsp;• Use "Browse..." button to select automatically
-  </dd>
-
-  <dt><strong>Data Validation</strong></dt>
-  <dd>
-    Quality checks and error detection:<br>
-    &emsp;• <code>Validate Data: ✓</code> ← enables comprehensive data quality reporting
-  </dd>
-</dl>
-
----
-
-## 📈 **Generated Script Features**
-
-The optimized GUI generates production-ready scripts with:
-
-- **Modular Design**: Separate scripts for preprocessing and different analysis types
-- **Comprehensive Error Handling**: Graceful failure recovery and detailed error messages
-- **Progress Reporting**: Real-time status updates and timing information
-- **Result Validation**: Automatic verification of output quality and data consistency
-- **Performance Metrics**: Execution time tracking and quality statistics
-- **SLURM Integration**: Optimized resource allocation and job management
-- **Self-Contained**: Each generated folder includes all necessary functions and dependencies
+- **Current Version**: Linux executable available (`MDisp_analysis_Linux`)
+- **Source Code**: Compatible with Linux, macOS, and Windows
+- **Future Releases**: Executables for macOS and Windows will be provided soon
 
 ---
 
 ## FAQ
 
-1. **Q: Which version should I use?**  
-   **A:** Use the **optimized source version** (`a2_MSD_pipeline.py`) for best performance and latest features.
+**Q: What file formats does the pipeline support?**  
+A: The pipeline works with NAMD DCD trajectory files and PSF structure files. Coordinates are output as plain text files.
 
-2. **Q: How much faster is the optimized version?**  
-   **A:** Typically **3-10x faster** depending on system size, with additional memory efficiency improvements.
+**Q: How long does a typical analysis take?**  
+A: Processing time depends on trajectory size and system complexity. Small systems (< 1000 particles) typically process in minutes, while large systems may take hours.
 
-3. **Q: What's new in the modular interface?**  
-   **A:** The main window handles data preprocessing (Steps 1-3), while a separate calculations window manages Alpha2/MSD and dipole analyses. This provides better organization and workflow clarity.
+**Q: Can I analyze only part of my trajectory?**  
+A: Yes, the GUI allows you to select specific DCD files or frame ranges for processing.
 
-4. **Q: How do I use the dipole calculations?**  
-   **A:** In the calculations window, go to the "Dipole Moments" tab, specify atomic charges (comma-separated), set atoms per molecule, and configure parallel processing options.
+**Q: What units are used for the outputs?**  
+A: MSD values are in Ų (square Angstroms), dipole moments are in Debye units, and α₂(t)/α_xz(t) are dimensionless parameters.
 
-5. **Q: Does it work on small screens?**  
-   **A:** Yes! Both the main and calculations windows use scrollable interfaces that work perfectly on laptops and small displays.
+**Q: Do I need programming experience to use this?**  
+A: No, the graphical interface guides you through the setup process. However, basic familiarity with molecular dynamics simulations is helpful.
 
-6. **Q: Can I benchmark the performance?**  
-   **A:** Absolutely! Use the "Benchmark Performance" button to generate test scripts and measure improvements for your specific system.
+**Q: Can I run this on a computing cluster?**  
+A: Yes, the pipeline can generate SLURM scripts for high-performance computing environments.
 
-7. **Q: Are the results scientifically equivalent?**  
-   **A:** Yes, and **more accurate** due to enhanced numerical stability, proper unit conversions (Debye for dipoles), and optimized calculations.
+**Q: How do I cite this software?**  
+A: Please refer to the license file for citation requirements and contact the author for publication guidelines.
 
-8. **Q: Can I still use my old configuration?**  
-   **A:** The optimized version maintains backward compatibility, but you'll benefit from the new centralized parameter system and modular workflow.
-
-9. **Q: How do I run multiple analyses?**  
-   **A:** Run preprocessing once in the main window, then generate and execute multiple analysis scripts from the calculations window as needed.
-
-10. **Q: How does the intelligent optimization work?**  
-    **A:** Enter your trajectory characteristics (file size, frames, atoms, memory) and click "🧠 Calculate Optimal Settings". The system automatically calculates optimal chunk sizes, worker counts, and memory requirements to prevent OOM errors and timeouts.
-
-11. **Q: What is DCD Selection and how do I use it?**  
-    **A:** DCD Selection lets you process specific trajectory files instead of all at once. Use formats like "4-10" for a range, "4-6,8-10" for multiple ranges, or "0-2,5,7-9" for mixed selections. This helps manage memory and processing time.
-
-12. **Q: My pipeline keeps running out of memory. How can I fix this?**  
-    **A:** Use the intelligent optimization system! Fill in your trajectory characteristics and let the system calculate optimal settings. Also try processing fewer DCDs at once using DCD Selection (e.g., "0-2" instead of all 10 DCDs).
+**Q: What if I encounter errors or need help?**  
+A: Check that all file paths are correct, VMD is properly installed, and input files are valid. Contact the author for technical support.
 
 ---
 
-## 🏆 **Optimization Summary**
-
-| Component | Original | Optimized v1.2 | Improvement |
-|-----------|----------|----------------|-------------|
-| **coordinates_extract** | Serial VMD processing | Parallel VMD execution | **3-5x + Enhanced Reliability** |
-| **unwrap_coords** | Memory intensive | Chunked processing | **3-5x + Memory Efficient** |
-| **COM_calc** | Loop-based calculations | Vectorized NumPy operations | **~10x faster** |
-| **alpha2_MSD** | Unstable numerics | Enhanced stability | **Reliable + Faster** |
-| **alpha_xz** | Basic implementation | Optimized directional analysis | **Enhanced + Efficient** |
-| **dipole_functions** | **NEW** | Vectorized parallel processing | **New + 5-10x faster** |
-| **🧠 Intelligent Optimization** | **NEW** | Auto-calculates optimal settings | **Prevents OOM + Optimizes Performance** |
-| **📊 DCD Selection** | **NEW** | Custom trajectory batch processing | **Memory Management + Flexibility** |
-| **GUI Workflow** | Single window | Modular interface | **Better UX + Organization** |
-| **Parameter Management** | Distributed inputs | Centralized + intelligent parameters | **Consistent + Auto-Optimized** |
-| **Overall Pipeline** | Sequential processing | Parallel + modular + intelligent + multi-analysis | **3-10x end-to-end + Smart + Flexible** |
-
----
-
-## 🔗 **Access to Source Code**
-
-This repository contains compiled modules (.so files) for optimal performance. If you require access to the complete source code for research, development, or educational purposes, please contact the author directly:
-
-**📧 Contact:** Please email the repository owner to request access to the private source repository. Include a brief description of your intended use case and institutional affiliation (if applicable).
-
-Access to the source code may be granted for:
-- Academic research and publications
-- Educational use in courses and workshops  
-- Collaborative development projects
-- Custom modifications and extensions
-
----
+## License
 
 © 2025 Adam Pirnia — All rights reserved.
 
-**Optimized Version Contributors**: Enhanced performance, parallel processing, modular interface design, and dipole analysis capabilities.
+This software is provided under a proprietary license. Please read the `LICENSE.txt` file for complete terms and conditions, including usage rights, restrictions, and attribution requirements.
 
