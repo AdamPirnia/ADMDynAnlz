@@ -91,6 +91,10 @@ chmod +x MDisp_analysis_Linux
 
 ---
 
+---
+![Alt text](example.png)
+---
+
 ## Platform Availability
 
 - **Current Version**: Linux executable available (`MDisp_analysis_Linux`)
