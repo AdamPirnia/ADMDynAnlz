@@ -1319,9 +1319,14 @@ def main():
     start_time = time.time()
     
     try:
-        # Import Python function directly
-        import main_functions.{module_name}
-        {function_name} = main_functions.{module_name}.{function_name}
+        # Import compiled function
+        import importlib.util
+        import os
+        so_file = os.path.join('main_functions', '{module_name}.so')
+        spec = importlib.util.spec_from_file_location('{module_name}', so_file)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        {function_name} = module.{function_name}
 
         # Parse DCD selection if provided
         dcd_selection = "{alpha2_dcd_selection}"
@@ -1482,9 +1487,14 @@ def main():
     start_time = time.time()
     
     try:
-        # Import Python dipole function directly
-        import main_functions.dipole_function
-        dipole_functions = main_functions.dipole_function.dipole_functions
+        # Import compiled dipole function
+        import importlib.util
+        import os
+        so_file = os.path.join('main_functions', 'dipole_function.so')
+        spec = importlib.util.spec_from_file_location('dipole_function', so_file)
+        dipole_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(dipole_module)
+        dipole_functions = dipole_module.dipole_functions
         
         # Parse DCD selection if provided
         dcd_selection = "{individual_dipole_dcd_selection}"
@@ -1611,9 +1621,14 @@ def main():
     start_time = time.time()
     
     try:
-        # Import Python VMD dipole function directly
-        import main_functions.vmd_dipole
-        vmd_dipole_collective = main_functions.vmd_dipole.vmd_dipole_collective
+        # Import compiled VMD dipole function
+        import importlib.util
+        import os
+        so_file = os.path.join('main_functions', 'vmd_dipole.so')
+        spec = importlib.util.spec_from_file_location('vmd_dipole', so_file)
+        vmd_dipole_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(vmd_dipole_module)
+        vmd_dipole_collective = vmd_dipole_module.vmd_dipole_collective
         
         # Parse DCD selection if provided
         dcd_selection = "{collective_dipole_dcd_selection}"
@@ -1746,9 +1761,14 @@ def main():
     start_time = time.time()
     
     try:
-        # Import Python function directly
-        import main_functions.velocity_extract
-        extract_velocities = main_functions.velocity_extract.extract_velocities
+        # Import compiled velocity function
+        import importlib.util
+        import os
+        so_file = os.path.join('main_functions', 'velocity_extract.so')
+        spec = importlib.util.spec_from_file_location('velocity_extract', so_file)
+        velocity_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(velocity_module)
+        extract_velocities = velocity_module.extract_velocities
 
         # Parse DCD selection if provided
         dcd_selection = "{velocity_dcd_selection}"
@@ -2866,7 +2886,7 @@ The script will submit all .sh files using sbatch commands."""
 
 
     def _copy_compiled_functions(self, src_dir, dest_dir):
-        """Copy Python function files"""
+        """Copy compiled .so function files"""
         import os
         import shutil
         import glob
@@ -2878,23 +2898,27 @@ The script will submit all .sh files using sbatch commands."""
         # Create destination directory
         os.makedirs(dest_dir, exist_ok=True)
         
-        # Copy .py files
-        py_files = glob.glob(os.path.join(src_dir, "*.py"))
-        # Exclude __init__.py and other special files
-        py_files = [f for f in py_files if not os.path.basename(f).startswith('__')]
+        # Copy .so files (compiled Cython extensions)
+        so_files = glob.glob(os.path.join(src_dir, "*.so"))
         
-        if not py_files:
-            raise ValueError(f"No Python .py files found in {src_dir}.")
+        if not so_files:
+            raise ValueError(f"No compiled .so files found in {src_dir}. Please run cythonization first.")
         
         copied_count = 0
-        for py_file in py_files:
-            filename = os.path.basename(py_file)
+        for so_file in so_files:
+            filename = os.path.basename(so_file)
             dest_file = os.path.join(dest_dir, filename)
-            shutil.copy2(py_file, dest_file)
+            shutil.copy2(so_file, dest_file)
             copied_count += 1
-            print(f"  ✓ Copied Python function: {filename}")
+            print(f"  ✓ Copied compiled function: {filename}")
         
-        print(f"Successfully copied {copied_count} Python function files")
+        # Copy __init__.py if it exists
+        init_file = os.path.join(src_dir, "__init__.py") 
+        if os.path.exists(init_file):
+            shutil.copy2(init_file, dest_dir)
+            print(f"  ✓ Copied __init__.py")
+        
+        print(f"Successfully copied {copied_count} compiled .so function files")
 
     # —— Generate driver & submission scripts ——
     def generate_files(self):
@@ -3010,7 +3034,14 @@ The script will submit all .sh files using sbatch commands."""
                     f"    selected_dcds = {coords_dcd_list}",
                     f"    print(f'Processing DCDs: {{selected_dcds}}')",
                     "    try:",
-                    "        from main_functions.coordinates_extract import raw_coords",
+                    "        # Import compiled function",
+                    "        import importlib.util",
+                    "        import os",
+                    "        so_file = os.path.join('main_functions', 'coordinates_extract.so')",
+                    "        spec = importlib.util.spec_from_file_location('coordinates_extract', so_file)",
+                    "        coords_module = importlib.util.module_from_spec(spec)",
+                    "        spec.loader.exec_module(coords_module)",
+                    "        raw_coords = coords_module.raw_coords",
                     f"        results_coords = raw_coords(",
                     f"            baseDir={repr(bd)},",
                     f"            psf_pattern={repr(psf_pattern)},",
@@ -3063,7 +3094,14 @@ The script will submit all .sh files using sbatch commands."""
                     f"    selected_dcds = {unwrap_dcd_list}",
                     f"    print(f'Processing DCDs: {{selected_dcds}}')",
                     "    try:",
-                    "        from main_functions.unwrap_coords import unwrapper",
+                    "        # Import compiled function",
+                    "        import importlib.util",
+                    "        import os",
+                    "        so_file = os.path.join('main_functions', 'unwrap_coords.so')",
+                    "        spec = importlib.util.spec_from_file_location('unwrap_coords', so_file)",
+                    "        unwrap_module = importlib.util.module_from_spec(spec)",
+                    "        spec.loader.exec_module(unwrap_module)",
+                    "        unwrapper = unwrap_module.unwrapper",
                     f"        results_unwrap = unwrapper(",
                     f"            baseDir={repr(bd)},",
                     f"            input_pattern={repr(input_pattern)},",
@@ -3114,7 +3152,14 @@ The script will submit all .sh files using sbatch commands."""
                     f"    selected_dcds = {com_dcd_list}",
                     f"    print(f'Processing DCDs: {{selected_dcds}}')",
                     "    try:",
-                    "        from main_functions.COM_calc import coms",
+                    "        # Import compiled function",
+                    "        import importlib.util",
+                    "        import os",
+                    "        so_file = os.path.join('main_functions', 'COM_calc.so')",
+                    "        spec = importlib.util.spec_from_file_location('COM_calc', so_file)",
+                    "        com_module = importlib.util.module_from_spec(spec)",
+                    "        spec.loader.exec_module(com_module)",
+                    "        coms = com_module.coms",
                     f"        results_com = coms(",
                     f"            baseDir={repr(bd)},",
                                          f"            input_pattern={repr(input_pattern)},",

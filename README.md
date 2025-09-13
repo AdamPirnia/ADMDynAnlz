@@ -90,8 +90,6 @@ chmod +x MDisp_analysis_Linux
 - **Input files**: NAMD DCD trajectories, PSF structure files, atomic charges (for dipole calculations)
 
 ---
-
----
 ![Alt text](example.png)
 ---
 
