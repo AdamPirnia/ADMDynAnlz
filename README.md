@@ -1,6 +1,6 @@
-# a2_MSD Pipeline
+# ADMDynAnlz
 
-A comprehensive molecular dynamics analysis pipeline for generating **Mean Square Displacement (MSD)**, **non-Gaussian parameters**, and **dipole moment** analyses from NAMD DCD trajectories.
+A comprehensive molecular dynamics analysis pipeline for NAMD simulations. 
 
 ---
 
@@ -12,10 +12,11 @@ A comprehensive molecular dynamics analysis pipeline for generating **Mean Squar
   - Center-of-mass calculation
   
 - **Analysis Calculations**:
-  - **α₂(t) and MSD**: Standard non-Gaussian parameter α₂(t) = 3⟨Δr⁴⟩/(5⟨Δr²⟩²) - 1 with mean square displacement
+  - **α₂(t) and MSD**: Standard non-Gaussian parameter α₂(t) = 3⟨Δr⁴⟩/(5⟨Δr⟩²)² - 1 with mean square displacement
   - **α_xz(t)**: Directional correlation parameter α_ij(t) = ⟨Δi²·Δj²⟩/(⟨Δi²⟩·⟨Δj²⟩) - 1
   - **Individual Dipole Moments**: Calculate and save individual dipole moments (vector and magnitude) of molecules
   - **Collective Dipole Moments**: Extract collective dipole moments of system components (e.g., protein, specific residues)
+  - **Velocity extraction**: Extract velocities of center of masses for individual molecules from VELDCD files produced by NAMD.
 
 - **GUI Interface**: User-friendly graphical interface for pipeline configuration and execution
 - **Executable Version**: Standalone executable for Linux systems
@@ -59,14 +60,14 @@ The pipeline handles the mathematical calculations, file I/O, and data organizat
 
 ```bash
 # Clone the repository
-git clone https://github.com/AdamPirnia/a2_MSD_pipeline.git
-cd a2_MSD_pipeline
+git clone https://github.com/AdamPirnia/ADMDynAnlz.git
+cd ADMDynAnlz
 
 # Install dependencies (if needed)
 sudo apt update && sudo apt install python3-tk -y  # Ubuntu/Debian
 
 # Run the GUI
-python3 a2_MSD_pipeline.py
+python3 ADMDynAnlz.py
 ```
 
 **Using the GUI:**
@@ -80,8 +81,8 @@ python3 a2_MSD_pipeline.py
 
 ```bash
 # Download and run the executable
-chmod +x MDisp_analysis_Linux
-./MDisp_analysis_Linux
+chmod +x ADMDynAnlz_Linux
+./ADMDynAnlz_Linux
 ```
 
 ### **Requirements**
@@ -95,7 +96,7 @@ chmod +x MDisp_analysis_Linux
 
 ## Platform Availability
 
-- **Current Version**: Linux executable available (`MDisp_analysis_Linux`)
+- **Current Version**: Linux executable available (`ADMDynAnlz_Linux`)
 - **Source Code**: Compatible with Linux, macOS, and Windows
 - **Future Releases**: Executables for macOS and Windows will be provided soon
 
@@ -134,4 +135,3 @@ A: Check that all file paths are correct, VMD is properly installed, and input f
 © 2025 Adam Pirnia — All rights reserved.
 
 This software is provided under a proprietary license. Please read the `LICENSE.txt` file for complete terms and conditions, including usage rights, restrictions, and attribution requirements.
-
