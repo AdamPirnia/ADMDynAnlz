@@ -148,27 +148,27 @@ This software is provided under a proprietary license. Please read the `LICENSE.
 ## Citation
 
 ### APA: 
-Mohammad Mehdi Pirnia. (2025). AdamPirnia/ADMDynAnlz: v1.0.0 - 
-ADMDynAnlz, Molecular Dynamics Analysis software (v1.0.0). Zenodo. https://doi.org/10.5281/zenodo.17835625
+Mohammad Mehdi Pirnia. (2025). AdamPirnia/ADMDynAnlz: v1.0.0 -  
+ADMDynAnlz, Molecular Dynamics Analysis software (v1.0.0). Zenodo. https://doi.org/10.5281/zenodo.17835625.
 
 ### Harvard:
-Mohammad Mehdi Pirnia (2025) “AdamPirnia/ADMDynAnlz: v1.0.0 - 
+Mohammad Mehdi Pirnia (2025) “AdamPirnia/ADMDynAnlz: v1.0.0 -  
 ADMDynAnlz, Molecular Dynamics Analysis software”. Zenodo. doi:10.5281/zenodo.17835625.
 
 ### MLA:
-Mohammad Mehdi Pirnia. AdamPirnia/ADMDynAnlz: V1.0.0 – 
+Mohammad Mehdi Pirnia. AdamPirnia/ADMDynAnlz: V1.0.0 –  
 ADMDynAnlz, Molecular Dynamics Analysis Software. v1.0.0, Zenodo, 6 Dec. 2025, https://doi.org/10.5281/zenodo.17835625.
 
 ### BibTex:
-@software{mohammad_mehdi_pirnia_2025_17835625,
-  author       = {Mohammad Mehdi Pirnia},
-  title        = {AdamPirnia/ADMDynAnlz: v1.0.0 – ADMDynAnlz,
-                   Molecular Dynamics Analysis software
-                  },
-  month        = dec,
-  year         = 2025,
-  publisher    = {Zenodo},
-  version      = {v1.0.0},
-  doi          = {10.5281/zenodo.17835625},
-  url          = {https://doi.org/10.5281/zenodo.17835625},
+@software{mohammad_mehdi_pirnia_2025_17835625,  
+  author       = {Mohammad Mehdi Pirnia},  
+  title        = {AdamPirnia/ADMDynAnlz: v1.0.0 – ADMDynAnlz,  
+                   Molecular Dynamics Analysis software  
+                  },  
+  month        = dec,  
+  year         = 2025,  
+  publisher    = {Zenodo},  
+  version      = {v1.0.0},  
+  doi          = {10.5281/zenodo.17835625},  
+  url          = {https://doi.org/10.5281/zenodo.17835625},  
 }
