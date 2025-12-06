@@ -147,19 +147,19 @@ This software is provided under a proprietary license. Please read the `LICENSE.
 
 ## Citation
 
-## APA: 
+### APA: 
 Mohammad Mehdi Pirnia. (2025). AdamPirnia/ADMDynAnlz: v1.0.0 - 
 ADMDynAnlz, Molecular Dynamics Analysis software (v1.0.0). Zenodo. https://doi.org/10.5281/zenodo.17835625
 
-## Harvard:
+### Harvard:
 Mohammad Mehdi Pirnia (2025) “AdamPirnia/ADMDynAnlz: v1.0.0 - 
 ADMDynAnlz, Molecular Dynamics Analysis software”. Zenodo. doi:10.5281/zenodo.17835625.
 
-## MLA:
+### MLA:
 Mohammad Mehdi Pirnia. AdamPirnia/ADMDynAnlz: V1.0.0 – 
 ADMDynAnlz, Molecular Dynamics Analysis Software. v1.0.0, Zenodo, 6 Dec. 2025, https://doi.org/10.5281/zenodo.17835625.
 
-## BibTex:
+### BibTex:
 @software{mohammad_mehdi_pirnia_2025_17835625,
   author       = {Mohammad Mehdi Pirnia},
   title        = {AdamPirnia/ADMDynAnlz: v1.0.0 – ADMDynAnlz,
