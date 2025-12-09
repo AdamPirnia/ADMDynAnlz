@@ -1,9 +1,26 @@
-cff-version: 1.0.0
+cff-version: 1.0
 message: "If you use this software, please cite it as below."
+title: "AdamPirnia/ADMDynAnlz: ADMDynAnlz, MD Dynamics Analysis software"
+version: "V1.0"
+doi: "10.5281/zenodo.17871735"
+date-released: "2025-12-06"
+url: "https://doi.org/10.5281/zenodo.17871735"
+repository-code: "https://github.com/AdamPirnia/ADMDynAnlz"
+
 authors:
-- family-names: Mohammad Mehdi
-  given-names: Pirnia
-orcid: https://orcid.org/0000-0001-6620-969X
-title: MD Dynamics Analysis 
-version: v1.0.0
-date-released: 2025-12-09
+  - family-names: Pirnia
+    given-names: Mohammad Mehdi
+    orcid: "https://orcid.org/0000-0001-6620-969X"
+
+preferred-citation:
+  type: software
+  authors:
+    - family-names: Pirnia
+      given-names: Mohammad Mehdi
+      orcid: "https://orcid.org/0000-0001-6620-969X"
+  title: "AdamPirnia/ADMDynAnlz: ADMDynAnlz, MD Dynamics Analysis software"
+  version: "V1.0"
+  doi: "10.5281/zenodo.17871735"
+  date-released: "2025-12-09"
+  url: "https://doi.org/10.5281/zenodo.17871735"
+  publisher: "Zenodo"
